@@ -1,0 +1,67 @@
+package com.noface.newswebapi.entity;
+
+
+import com.noface.newswebapi.cons.ArticleStatus;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Entity
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Getter
+@Setter
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class Article {
+    @Id
+    @GeneratedValue
+    @Column(name = "articleId")
+    Long id;
+
+    @Column(name = "title")
+    String title;
+    @Column(name = "summary")
+    String summary;
+
+    @Column(name = "content", columnDefinition = "TEXT")
+    String content;
+
+    @Column(name = "dateCreated")
+    @DateTimeFormat
+    LocalDateTime dateCreated;
+
+    @Column(name = "lastUpdated")
+    @DateTimeFormat
+    LocalDateTime lastUpdated;
+
+    @Column(name = "datePublished")
+    LocalDateTime datePublished;
+
+    @Column(name = "status")
+    @Enumerated(EnumType.STRING)
+    ArticleStatus status;
+
+    @Column(name = "thumbnailUrl")
+    String thumbnailUrl;
+
+    @ManyToOne
+    @JoinColumn(name = "moderatorId")
+    User moderator;
+
+    @OneToMany
+    @Column(name = "category")
+    Set<Category> categories;
+
+    @ManyToOne
+    @NotNull
+    @JoinColumn(name = "authorId")
+    User author;
+
+}

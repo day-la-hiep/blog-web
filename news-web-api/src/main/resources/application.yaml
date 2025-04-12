@@ -1,0 +1,60 @@
+spring:
+
+  application:
+    name: news-web-api
+  datasource:
+    url: jdbc:mysql://localhost:3306/blogdatabase
+    username: hiep
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  security:
+    user:
+      name: hiep
+      password: hiep
+
+
+cloudinary:
+  CLOUDINARY_URL: cloudinary://355355849832922:Uu5v6iKd52FN7v9SZqp3IuXWyH8@dtshwjjbc
+
+
+jwt:
+  signerKey: "xf9P4PE8zjEXX+Z1eApvW3RAjfyuCNfoHCVpcDJitR2Di2tSwoDwpLZcaCNJ/OA1"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
