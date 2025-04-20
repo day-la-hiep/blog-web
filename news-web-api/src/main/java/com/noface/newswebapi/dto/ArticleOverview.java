@@ -1,4 +1,4 @@
-package com.noface.newswebapi.dto.response.article;
+package com.noface.newswebapi.dto;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Builder
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ArticleOverviewResponse {
+public class ArticleOverview {
     String id;
     String title;
     String summary;

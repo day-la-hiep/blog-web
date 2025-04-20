@@ -5,6 +5,8 @@ import com.noface.newswebapi.dto.request.article.ArticleCreateRequest;
 import com.noface.newswebapi.dto.request.article.ArticleStatusUpdateRequest;
 import com.noface.newswebapi.dto.request.article.ArticleUpdateRequest;
 import com.noface.newswebapi.dto.response.ApiResponse;
+
+import com.noface.newswebapi.dto.response.article.ArticleOverviewResponse;
 import com.noface.newswebapi.dto.response.article.ArticleResponse;
 import com.noface.newswebapi.dto.response.article.UploadArticleImageResponse;
 import com.noface.newswebapi.mapper.ArticleMapper;
@@ -16,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -69,30 +73,36 @@ public class ArticleController {
 
 
     @GetMapping("/articles")
-    public ApiResponse<List<ArticleResponse>> getArticles(
+    public ApiResponse<List<ArticleOverviewResponse>> getArticles(
             @RequestParam(defaultValue = "0") Integer page,
-            @RequestParam(defaultValue = "100") Integer size,
-            @RequestParam(defaultValue = "id") String sortProperty,
-            @RequestParam(defaultValue = "asc") String sortDirection,
+            @RequestParam(defaultValue = "100") Integer limit,
+            @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "") String title,
             @RequestParam(defaultValue = "") String id,
 
-            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "PUBLISHED") String status,
             @RequestParam(required = false) LocalDateTime startDate,
-            @RequestParam(required = false) LocalDateTime endDate,
-            @RequestParam(required = false) String authorName
+            @RequestParam(required = false) LocalDateTime endDate
     ) {
+
         startDate = startDate != null ? startDate.withHour(0)
                 .withMinute(0).withSecond(0).withNano(0) : startDate;
         endDate = endDate != null ? endDate.withHour(23).withMinute(59).withSecond(59)
                 .withNano(999_999_999) : endDate;
-        ArticleStatus articleStatus = status != null ? ArticleStatus.valueOf(status.toUpperCase()) : null;
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by(Sort.Direction.fromString(sortDirection.toUpperCase()), sortProperty));
 
-        Stream<ArticleResponse> articlesResponse = articleService.getArticlesWithFilter(
-                id, title, authorName, startDate, endDate, articleStatus, pageable);
-        ApiResponse<List<ArticleResponse>> response = ApiResponse.<List<ArticleResponse>>builder()
+        List<SimpleGrantedAuthority> authorities = (List<SimpleGrantedAuthority>) SecurityContextHolder
+                .getContext().getAuthentication().getAuthorities();
+        if(authorities.contains(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))) {
+            status = ArticleStatus.PUBLISHED.getName().toUpperCase();
+        }
+        Pageable pageable = PageRequest.of(page, limit,
+                Sort.by(Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
+                        sortBy.replace("+", "").replace("-", "").trim()
+                ));
+
+        Stream<ArticleOverviewResponse> articlesResponse = articleService.getArticlesWithFilter(
+                id, title,  startDate, endDate, status, pageable);
+        ApiResponse<List<ArticleOverviewResponse>> response = ApiResponse.<List<ArticleOverviewResponse>>builder()
                 .result(articlesResponse.toList())
                 .build();
         return response;
@@ -123,17 +133,19 @@ public class ArticleController {
     @GetMapping("/articles/count")
     public ApiResponse<Long> getNumberOfArticle(
             @RequestParam(defaultValue = "") String title,
-            @RequestParam(defaultValue = "") Long id,
+            @RequestParam(defaultValue = "") String id,
 
-            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "PUBLISHED") String status,
             @RequestParam(required = false) LocalDateTime startDate,
-            @RequestParam(required = false) LocalDateTime endDate,
-            @RequestParam(required = false) String authorName
+            @RequestParam(required = false) LocalDateTime endDate
     ) {
-        ArticleStatus articleStatus = status != null ? ArticleStatus.valueOf(status.toUpperCase()) : null;
-
+        List<SimpleGrantedAuthority> authorities = (List<SimpleGrantedAuthority>) SecurityContextHolder
+                .getContext().getAuthentication().getAuthorities();
+        if(authorities.contains(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))) {
+            status = ArticleStatus.PUBLISHED.getName().toUpperCase();
+        }
         return ApiResponse.<Long>builder().result(articleService.getNumberOfArtilce(title, id,
-                articleStatus, startDate, endDate, authorName )).build();
+                status, startDate, endDate)).build();
     }
 
     @PostMapping("/{articleId}/images")
@@ -155,10 +167,10 @@ public class ArticleController {
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR')")
     public ApiResponse<ArticleResponse> updateArticleStatus(
             @PathVariable("articleId") String articleId,
-            @RequestBody ArticleStatusUpdateRequest request
+            @RequestBody String status
     ) {
         return ApiResponse.<ArticleResponse>builder()
-                .result(articleService.updateArticleStatus(articleId, request))
+                .result(articleService.updateArticleStatus(articleId, status))
                 .build();
     }
 

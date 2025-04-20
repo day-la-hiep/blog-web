@@ -16,15 +16,10 @@ public class ArticleResponse {
     String id;
     String title;
     String summary;
-    String content;
     LocalDateTime dateCreated;
     LocalDateTime lastUpdated;
     String author;
-    String moderator;
-    LocalDateTime datePublished;
     String status;
     String thumbnailUrl;
-
-    List<CategoryResponse> categories;
 
 }

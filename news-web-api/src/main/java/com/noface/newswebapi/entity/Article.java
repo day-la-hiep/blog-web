@@ -25,7 +25,7 @@ public class Article {
     @Id
     @GeneratedValue(generator = "uuid")
     @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
-    @Column(name = "articleId")
+    @Column(name = "id")
     String id;
 
     @Column(name = "title")
@@ -46,8 +46,7 @@ public class Article {
 
 
     @Column(name = "status")
-    @Enumerated(EnumType.STRING)
-    ArticleStatus status;
+    String status;
 
     @Column(name = "thumbnailUrl")
     String thumbnailUrl;

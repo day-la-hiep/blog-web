@@ -1,5 +1,6 @@
 package com.noface.newswebapi.mapper;
 
+import com.noface.newswebapi.dto.ArticleOverview;
 import com.noface.newswebapi.dto.request.article.ArticleCreateRequest;
 import com.noface.newswebapi.dto.request.article.ArticleRequest;
 import com.noface.newswebapi.dto.request.article.ArticleUpdateRequest;
@@ -24,8 +25,9 @@ public interface ArticleMapper {
     public ArticleResponse toArticleResponse(Article article);
 
     @Mapping(target = "author", source = "author.fullname")
-//    @Mapping(target = "moderator", source = "moderator.username")
     ArticleOverviewResponse toArticleOverviewResponse(Article article);
 
     Article asArticle(ArticleCreateRequest request);
+
+    ArticleOverviewResponse toArticleOverviewResponse(ArticleOverview articleOverview);
 }
