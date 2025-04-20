@@ -16,9 +16,12 @@ public enum ErrorCode {
     ARTICLE_NOT_EXISTED(1007, "Article is not existed"),
     CATEGORY_NOT_EXISTED(1008, "Category is not existed"),
     FILE_UPLOAD_FAILED(1009, "File upload failed"),
-
+    COMMENT_NOT_EXISTED(1010, "Comment is not existed"),
+    ADD_COMMENT_FAILED(1011, "Add comment failed"),
+    SAVED_LIST_NOT_EXISTED(1012, "Saved list not existed" ),
 
     ;
+
 
     ErrorCode(int code, String message){
         this.code = code;

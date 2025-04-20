@@ -10,7 +10,6 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AuthenticationResponse {
     boolean authenticated;
     String token;

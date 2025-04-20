@@ -10,9 +10,8 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface CategoryRepository extends JpaRepository<Category, Long> {
+public interface CategoryRepository extends JpaRepository<Category, String> {
     Category getCategoryByName(String categoryName);
-    Optional<Category> getCategoryById(Long id);
     Optional<Category> getCategoryBySlug(String slug);
 
 

@@ -44,12 +44,12 @@ public class UserService {
 
     }
 
-    public UserRespone getUserById(Long id){
+    public UserRespone getUserById(String id){
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         return userMapper.toUserRespone(user);
     }
 
-    public UserRespone updateUserById(Long id, User newUserInfo){
+    public UserRespone updateUserById(String id, User newUserInfo){
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         userMapper.updateuser(user, newUserInfo);
@@ -72,22 +72,17 @@ public class UserService {
 
 
     @Transactional
-    public UserRespone removeUser(Long id){
+    public UserRespone removeUser(String id){
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         userRepository.removeUserById(id);
         return userMapper.toUserRespone(user);
     }
 
-
-    public User getUserByUsernameWithRoles(String username) {
-        return userRepository.findUserByUsernameWithRoles(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-    }
-
-    public boolean isOwnUserProfile(Long id, String username){
+    public String getUsernameById(String id){
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        return user.getUsername().equals(username);
+        return user.getUsername();
     }
+
 
     public boolean userExisted(String username){
         return userRepository.existsByUsername(username);

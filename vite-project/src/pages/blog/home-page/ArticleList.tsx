@@ -1,12 +1,8 @@
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { Toggle } from "@/components/ui/toggle"
 import { useEffect, useState } from "react"
-import { Star, MessageCircle, Eye, Bookmark, MoreHorizontal } from "lucide-react";
-import { Card } from "@/components/ui/card"
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
-import { Category } from "@/type/Category";
-import { Post } from "@/type/Post";
+import { Category } from "@/service/CategoryService";
+import { fetchPosts, Post } from "@/service/PostService";
 import { blogPath } from "@/RouteDefinition";
 import { categories, posts } from '@/FakeData'
 import ArticleCard from "./ArticleCard";
@@ -17,8 +13,9 @@ export default function ArticleList() {
     const [posts, setPosts] = useState<Post[]>()
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
+    const [categories, setCategories] = useState<Category[]>()
+
     useEffect(() => {
-        const [categories, setCategories] = useState<Category[]>()
         getCategories().then(categories => {
             setCategories(categories)
         })
@@ -33,6 +30,11 @@ export default function ArticleList() {
             )
         }
     }, [searchParams])
+    useEffect(() => {
+        fetchPosts(0, 10).then((posts) => {
+            setPosts(posts)
+        })
+    }, [])
     return (
         <div className="flex flex-col justify-between gap-2">
             <div className="flex overflow-auto">
@@ -58,9 +60,6 @@ export default function ArticleList() {
     )
 }
 
-function ArticleView() {
-
-}
 
 
 

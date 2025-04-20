@@ -1,12 +1,12 @@
 package com.noface.newswebapi.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.noface.newswebapi.cons.ArticleStatus;
-import com.noface.newswebapi.dto.request.ArticleRequest;
+import com.noface.newswebapi.dto.request.article.ArticleCreateRequest;
+import com.noface.newswebapi.dto.request.article.ArticleStatusUpdateRequest;
+import com.noface.newswebapi.dto.request.article.ArticleUpdateRequest;
 import com.noface.newswebapi.dto.response.ApiResponse;
-import com.noface.newswebapi.dto.response.ArticleOverviewResponse;
-import com.noface.newswebapi.dto.response.ArticleResponse;
-import com.noface.newswebapi.dto.response.UploadArticleImageResponse;
+import com.noface.newswebapi.dto.response.article.ArticleResponse;
+import com.noface.newswebapi.dto.response.article.UploadArticleImageResponse;
 import com.noface.newswebapi.mapper.ArticleMapper;
 import com.noface.newswebapi.service.ArticleService;
 import com.noface.newswebapi.service.FileUploadService;
@@ -22,12 +22,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 
 
 @RestController
-@RequestMapping("/api/articles")
+@RequestMapping("/api")
 @Slf4j
 public class ArticleController {
     @Autowired
@@ -35,13 +34,11 @@ public class ArticleController {
     @Autowired
     private ArticleService articleService;
     @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
     private FileUploadService fileUploadService;
 
-    @PostMapping()
+    @PostMapping("/articles")
     public ApiResponse<ArticleResponse> createArticle(
-            @RequestBody ArticleRequest articleRequest
+            @RequestBody ArticleCreateRequest articleRequest
 
     ) throws IOException {
 
@@ -52,29 +49,26 @@ public class ArticleController {
                 .build();
     }
 
-    @PostMapping("/{articleId}/thumbnail")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR') or " +
-            "@articleService.isOwned(authentication.name, #articleId)")
+    @PostMapping("/articles/{articleId}/thumbnail")
+    @PreAuthorize("@articleService.isOwned(authentication.name, #articleId)")
     public ApiResponse<ArticleResponse> uploadImageThumbnails(
             @RequestParam("file") MultipartFile file,
-            @PathVariable("articleId") Long articleId
+            @PathVariable("articleId") String articleId
     ) throws IOException {
         return ApiResponse.<ArticleResponse>builder()
                 .result(fileUploadService.uploadArticleThumbnail(articleId, file))
                 .build();
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR') or " +
-            "@articleService.isOwned(authentication.name, #id)")
-    public ApiResponse<ArticleResponse> getArticleById(@PathVariable Long id) {
+    @GetMapping("/articles/{id}")
+    public ApiResponse<ArticleResponse> getArticleById(@PathVariable String id) {
         return ApiResponse.<ArticleResponse>builder()
                 .result(articleService.getArticleById(id))
                 .build();
     }
 
 
-    @GetMapping()
+    @GetMapping("/articles")
     public ApiResponse<List<ArticleResponse>> getArticles(
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "100") Integer size,
@@ -105,30 +99,31 @@ public class ArticleController {
     }
 
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @articleService.isOwned(authentication.name, #id)")
-    public ApiResponse<ArticleResponse> updateArticle(@PathVariable Long id, @RequestBody ArticleRequest request) {
-
+    @PutMapping("/articles/{id}")
+    @PreAuthorize("@articleService.isOwned(authentication.name, #id)")
+    public ApiResponse<ArticleResponse> updateArticle(
+            @PathVariable String id, @RequestBody ArticleUpdateRequest request
+    ) {
         ArticleResponse response = articleService.updateArticle(id,
-                articleMapper.asArticle(request));
+                request);
         return ApiResponse.<ArticleResponse>builder()
                 .result(response)
                 .build();
     }
 
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @articleService.isOwned(authentication.name, #id)")
-    public ApiResponse<ArticleResponse> removeArticle(@PathVariable Long id) {
+    @DeleteMapping("/articles/{id}")
+    @PreAuthorize("@articleService.isOwned(authentication.name, #id)")
+    public ApiResponse<ArticleResponse> removeArticle(@PathVariable String id) {
         return ApiResponse.<ArticleResponse>builder()
                 .result(articleService.removeArticleById(id))
                 .build();
     }
 
-    @GetMapping("/count")
+    @GetMapping("/articles/count")
     public ApiResponse<Long> getNumberOfArticle(
             @RequestParam(defaultValue = "") String title,
-            @RequestParam(defaultValue = "") String id,
+            @RequestParam(defaultValue = "") Long id,
 
             @RequestParam(required = false) String status,
             @RequestParam(required = false) LocalDateTime startDate,
@@ -142,6 +137,8 @@ public class ArticleController {
     }
 
     @PostMapping("/{articleId}/images")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR') or " +
+            "@articleService.isOwned(authentication.name, #articleId)")
     public ApiResponse<UploadArticleImageResponse> uploadArticleImages(
             @RequestParam("file") MultipartFile file,
             @RequestParam(defaultValue = "false") boolean overwrite,
@@ -154,6 +151,32 @@ public class ArticleController {
                         .build())
                 .build();
     }
+    @PutMapping("/{articleId}/status")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR')")
+    public ApiResponse<ArticleResponse> updateArticleStatus(
+            @PathVariable("articleId") String articleId,
+            @RequestBody ArticleStatusUpdateRequest request
+    ) {
+        return ApiResponse.<ArticleResponse>builder()
+                .result(articleService.updateArticleStatus(articleId, request))
+                .build();
+    }
 
-
+    @GetMapping("/users/{userId}/articles")
+    @PreAuthorize("@articleService.isOwned(authentication.name, #userId)")
+    public ApiResponse<List<ArticleResponse>> getArticlesByUserId(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "100") Integer limit,
+            @RequestParam(defaultValue = "+id") String sortProperty
+    ) {
+        Pageable pageable = PageRequest.of(page, limit,
+                Sort.by(Sort.Direction.fromString(
+                        sortProperty.startsWith("+") ? "asc" : "desc"),
+                        sortProperty.replace("+", "").replace("-", ""
+                )));
+        return ApiResponse.<List<ArticleResponse>>builder()
+                .result(articleService.getArticlesByUserId(userId, pageable))
+                .build();
+    }
 }

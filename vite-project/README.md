@@ -1,54 +1,86 @@
-# React + TypeScript + Vite
+## Người dùng đăng nhập, đăng ký.
+@startuml
+actor User
+participant "Frontend" as FE
+participant "Backend" as BE
+participant "Database" as DB
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+'=== Quy trình Đăng ký ===
+User -> FE: Nhập thông tin đăng ký (username, email, password)
+FE -> FE: Validate dữ liệu (format email, độ mạnh password)
+alt Dữ liệu hợp lệ
+    FE -> BE: Gửi POST /api/register {username, email, password}
+    BE -> BE: Validate dữ liệu (kiểm tra logic nghiệp vụ)
+    BE -> DB: Truy vấn kiểm tra email/username tồn tại
+    DB --> BE: Trả về kết quả
+    alt Thông tin chưa tồn tại
+        BE -> BE: Hash password (bcrypt)
+        BE -> DB: INSERT INTO Users (username, email, password)
+        DB --> BE: Xác nhận lưu thành công
+        BE --> FE: Trả về 200 OK + thông báo thành công
+        FE --> User: Hiển thị "Đăng ký thành công" và chuyển hướng
+    else Thông tin đã tồn tại
+        BE --> FE: Trả về 400 Bad Request + "Email đã tồn tại"
+        FE --> User: Hiển thị lỗi và yêu cầu nhập lại
+    end
+else Dữ liệu không hợp lệ
+    FE --> User: Hiển thị lỗi validate (VD: email sai định dạng)
+end
 
-Currently, two official plugins are available:
+'=== Quy trình Đăng nhập ===
+User -> FE: Nhập thông tin đăng nhập (email/username, password)
+FE -> BE: Gửi POST /api/login {identifier, password}
+BE -> DB: SELECT * FROM Users WHERE email = ? OR username = ?
+DB --> BE: Trả về thông tin user (nếu tồn tại)
+alt User tồn tại
+    BE -> BE: So sánh password (bcrypt.compare)
+    alt Password đúng
+        BE -> BE: Tạo JWT token
+        BE --> FE: Trả về 200 OK + {token, user_data}
+        FE -> FE: Lưu token vào localStorage/cookie
+        FE --> User: Chuyển hướng đến trang chủ
+    else Password sai
+        BE --> FE: Trả về 401 Unauthorized + "Sai mật khẩu"
+        FE --> User: Hiển thị lỗi
+    end
+else User không tồn tại
+    BE --> FE: Trả về 404 Not Found + "Tài khoản không tồn tại"
+    FE --> User: Hiển thị lỗi
+end
+@enduml
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Thao tác của người dùng tại trang chính
+@startuml
+actor User
+participant "Frontend" as FE
+participant "Backend" as BE
+participant "Database" as DB
 
-## Expanding the ESLint configuration
+'=== Luồng xem danh sách bài viết ===
+User -> FE: Truy cập trang chủ / danh sách bài viết
+FE -> BE: Gửi GET /api/articles (kèm category_id nếu có)
+alt Xem theo thể loại
+    FE -> User: Hiển thị dropdown chọn thể loại
+    User -> FE: Chọn thể loại (category_id)
+    FE -> BE: Gửi GET /api/articles?category_id={category_id}
+end
+BE -> DB: Truy vấn bài viết (SELECT * FROM Articles JOIN Article_Categories...)
+alt Có category_id
+    DB -> BE: Trả về bài viết thuộc thể loại đã chọn
+else Không có category_id
+    DB -> BE: Trả về tất cả bài viết (mặc định)
+end
+BE --> FE: Trả về 200 OK + danh sách bài viết
+FE --> User: Hiển thị danh sách bài viết (tiêu đề, ảnh, tóm tắt)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+'=== Luồng xem chi tiết bài viết ===
+User -> FE: Chọn một bài viết từ danh sách
+FE -> BE: Gửi GET /api/articles/{article_id}
+BE -> DB: Truy vấn chi tiết bài viết (SELECT * FROM Articles WHERE article_id = ?)
+DB --> BE: Trả về thông tin bài viết
+BE -> DB: Truy vấn thể loại bài viết (SELECT Categories.name FROM Article_Categories...)
+DB --> BE: Trả về danh sách thể loại
+BE --> FE: Trả về 200 OK + {nội dung, thể loại, tác giả...}
+FE --> User: Hiển thị chi tiết bài viết
+@enduml
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```

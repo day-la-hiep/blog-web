@@ -1,14 +1,12 @@
-package com.noface.newswebapi.dto.request;
+package com.noface.newswebapi.dto.request.article;
 
-import com.noface.newswebapi.entity.Article;
-import com.noface.newswebapi.entity.User;
+import com.noface.newswebapi.dto.request.CategoryRequest;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.mapstruct.Mapper;
 
-import java.time.LocalDate;
 import java.util.Set;
 
 @Mapper

@@ -1,9 +1,10 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "./app-sidebar";
+import { AppSidebar } from "./AppSideBar";
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuthService } from "@/hooks/AuthProvider";
 import { adminLoginPath } from "@/RouteDefinition";
 import { BlobOptions } from "buffer";
+import AdminProtectedRoute from "@/routes/AdminProtectedRoutes";
 
 
 export default function CmsLayout() {
@@ -12,10 +13,12 @@ export default function CmsLayout() {
 
   return (
     (
-      <SidebarProvider>
-        <AppSidebar />
-        <Outlet />
-      </SidebarProvider>
+      <AdminProtectedRoute>
+        <SidebarProvider>
+          <AppSidebar />
+          <Outlet />
+        </SidebarProvider>
+      </AdminProtectedRoute>
     )
   );
 }

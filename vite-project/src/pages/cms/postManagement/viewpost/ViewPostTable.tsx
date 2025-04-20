@@ -131,7 +131,6 @@ const ViewPostTable: React.FC<ViewPostTableProps> = ({ handleSheetPreviewClicked
             <Button
               onClick={() => {
                 if (row.original.id) {
-
                   handleDeletePost(row.original.id)
                 }
               }}

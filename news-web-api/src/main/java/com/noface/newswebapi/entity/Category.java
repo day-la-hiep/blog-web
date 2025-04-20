@@ -4,8 +4,10 @@ package com.noface.newswebapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.GenericGenerator;
 import org.springframework.validation.annotation.Validated;
 
+import java.awt.image.ImageProducer;
 import java.util.Set;
 
 @Entity
@@ -17,8 +19,9 @@ import java.util.Set;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Category {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    Long id;
+    @GeneratedValue(generator = "uuid")
+    @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
+    String id;
 
     @Column(name = "slug")
     String slug;
@@ -30,6 +33,7 @@ public class Category {
 
     boolean isVisible;
 
-    @ManyToOne
+    @ManyToOne()
+    @JoinColumn(name = "articleId")
     Article article;
 }

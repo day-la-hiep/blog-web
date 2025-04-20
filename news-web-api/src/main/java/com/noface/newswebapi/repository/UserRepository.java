@@ -11,11 +11,11 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findById(Long id);
+public interface UserRepository extends JpaRepository<User, String> {
+    Optional<User> findById(String id);
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);
-    void removeUserById(Long id);
+    void removeUserById(String id);
     List<User> findAll();
     Page<User> findAll(Pageable pageable);
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.username = ?1")

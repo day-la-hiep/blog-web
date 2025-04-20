@@ -1,35 +1,31 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { jwtDecode } from 'jwt-decode';
 import { fa } from "@faker-js/faker";
 import { boolean } from "zod";
 import { useNavigate } from "react-router-dom";
-import { adminLoginPath } from "@/RouteDefinition";
+import { adminDashboardPath, adminLoginPath } from "@/RouteDefinition";
 
 
 type AuthValue = {
-    isAuthenticated: boolean
     token: string,
     auth: Function,
-    username: string,
-    verifyToken: Function
+    verifyToken: Function,
+    tokenInfo: any
 }
 
 const AuthContext = createContext<AuthValue>({
-    isAuthenticated: false,
     token: "",
     auth: () => { },
-    username: "",
     verifyToken: Function,
+    tokenInfo: null
 });
 const baseUrl = "http://localhost:8080"
 interface AuthProviderProps {
     children: ReactNode
 }
 const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [token, setToken] = useState(localStorage.getItem("token") || "")
-    const [username, setUsername] = useState("")
-    const navigate = useNavigate()
+    const tokenInfo = useRef(null)
     useEffect(() => {
         verifyToken()
     }, [token])
@@ -48,6 +44,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (res.result.authenticated == true) {
                 localStorage.setItem("token", res.result.token)
+                alert(res.result.token)
+                setToken(res.result.token)
+                tokenInfo.current = getTokenInfo(res.result.token)
             }
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -57,51 +56,47 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, [])
 
 
-    const verifyToken = useCallback(async (): Promise<boolean> => {
-
+    const verifyToken = useCallback(async () => {
         if (localStorage.getItem("token") != "") {
             try {
                 const response = await fetch(`${baseUrl}/api/auth/introspect`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        token: token
+                        token: localStorage.getItem("token")
                     })
                 })
                 const res = await response.json()
                 const valid = res.result.valid
                 if (valid == false) {
-                    navigate(adminLoginPath)
-                    setIsAuthenticated(false)
+                    localStorage.setItem("token", "")
                 } else {
-                    const username = getUserNameFromToken(token)
-                    setIsAuthenticated(true)
-                    if (username) {
-                        setUsername(username)
-                    }
+                    tokenInfo.current = getTokenInfo(token)
                 }
             } catch (e) {
             } finally {
             }
         } else {
             console.log("Token not found")
-            navigate(adminLoginPath)
-            setIsAuthenticated(false)
         }
-        return isAuthenticated
-    }, [])
+    }, [token])
 
 
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, token, auth, username, verifyToken }}>
+        <AuthContext.Provider value={{ token, auth,  verifyToken, tokenInfo}}>
             {children}
         </AuthContext.Provider>
     )
 
 
 }
-
+const getTokenInfo = (token: string) => {
+    const payload = token.split(".")[1]
+    const decodedPayload = atob(payload)
+    const jsonPayload = JSON.parse(decodedPayload)
+    return jsonPayload
+}
 const getUserNameFromToken = (token: string) => {
     try {
         const decoded = jwtDecode(token)

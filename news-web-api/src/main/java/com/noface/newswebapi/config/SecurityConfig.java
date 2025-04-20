@@ -1,6 +1,7 @@
 package com.noface.newswebapi.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.actuate.autoconfigure.observation.ObservationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,6 +30,7 @@ import javax.crypto.spec.SecretKeySpec;
 @EnableMethodSecurity
 public class SecurityConfig{
     private String[] permittedRequest = {"/api/auth/users", "/api/auth/introspect", "/api/users", "/api/images/upload"};
+    private String[] permittedRequestForGuest = {"/api/articles/*"};
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity httpSecurity) throws Exception {
@@ -37,6 +39,7 @@ public class SecurityConfig{
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, permittedRequest).permitAll()
+                        .requestMatchers(HttpMethod.GET, permittedRequestForGuest).permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 ->

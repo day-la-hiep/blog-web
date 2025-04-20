@@ -2,7 +2,7 @@ package com.noface.newswebapi.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import com.noface.newswebapi.dto.response.ArticleResponse;
+import com.noface.newswebapi.dto.response.article.ArticleResponse;
 import com.noface.newswebapi.entity.Article;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
@@ -74,7 +74,7 @@ public class FileUploadService {
         );
         return uploadResult.get("secure_url").toString();
     }
-    public ArticleResponse uploadArticleThumbnail(Long articleId, MultipartFile file) {
+    public ArticleResponse uploadArticleThumbnail(String articleId, MultipartFile file) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         String folder = String.format("/users/%s/articles/%s/thumbnail", username, articleId);
         try {

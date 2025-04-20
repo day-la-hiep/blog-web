@@ -1,18 +1,15 @@
-package com.noface.newswebapi.dto.response;
+package com.noface.newswebapi.dto.response.article;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ArticleOverviewResponse {
     String id;
     String title;

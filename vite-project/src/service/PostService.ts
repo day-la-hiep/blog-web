@@ -1,3 +1,5 @@
+import { Category } from "./CategoryService"
+
 export type Post = {
     id: string
     title: string
@@ -7,7 +9,13 @@ export type Post = {
     status: string
 
 }
-
+export type PostForm = {
+    title: string,
+    summary: string,
+    content: string,
+    categories: Category[],
+    thumbnailUrl: string,
+}
 export type createPostRequest = {
     title: string,
     summary: string,
@@ -90,7 +98,7 @@ export async function fetchNumberOfPost(
 export async function fetchPosts(
     page: number,
     pageSize: number,
-    sortParam: SortParam,
+    sortParam?: SortParam,
     filterParam?: PostFilter,
 ) {
     const token = localStorage.getItem("token");
@@ -115,8 +123,10 @@ export async function fetchPosts(
     appendParam("page", page.toString());
     appendParam("size", pageSize.toString());
 
-    appendParam("sortDirection", sortParam.sortDirection);
-    appendParam("sortProperty", sortParam.sortProperty);
+    if(sortParam){
+        appendParam("sortDirection", sortParam.sortDirection);
+        appendParam("sortProperty", sortParam.sortProperty);
+    }
     if (filterParam) {
         appendParam("startDate", filterParam.startDate ? formatDate(filterParam.startDate, false) : "");
         appendParam("endDate", filterParam.endDate ? formatDate(filterParam.endDate, true) : "");
@@ -172,7 +182,7 @@ export async function updateArticleStatus(
     return data.result;
 }
 
-export async function deleteArticle(articleId: string) {
+export async function deletePost(articleId: string) {
     const token = localStorage.getItem('token')
     const url = `http://localhost:8080/api/articles/${articleId}`;
     const response = await fetch(url, {
@@ -228,29 +238,9 @@ export async function uploadPostImage(articleId : string, file : File) : Promise
     return await response.json();
 }
 
-export async function fetchCategories() {
-    const token = localStorage.getItem('token')
-    try {
-        const response = await fetch("http://localhost:8080/api/categories", {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            }
-        });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        return data.result
-    } catch (error) {
-        console.error("Error fetching categories:", error);
-    }
-}
-export async function createPost(postForm: PostForm, token: string) {
+export async function createPost(postForm: PostForm) {
+    const token = localStorage.getItem("token")
     const url = "http://localhost:8080/api/articles";
     const data = {
         title: postForm.title,
@@ -282,14 +272,15 @@ export async function createPost(postForm: PostForm, token: string) {
     }
 }
 
-async function fetchPostById(token: string, articleId: number) {
+export async function fetchPost( articleId: number) {
+    const token = localStorage.getItem("token")
     const url = `http://localhost:8080/api/articles/${articleId}`;
     try {
         const response = await fetch(url, {
             method: "GET",
             headers: {
-                "Authorization": `Bearer ${token}`
-            }
+                'Authorization': `Bearer ${token}`,
+            },
         });
 
         if (!response.ok) {
@@ -302,7 +293,7 @@ async function fetchPostById(token: string, articleId: number) {
         console.error("Error fetching article:", error);
     }
 }
-async function updatePost(id: String, oldValue: Post, newValue: PostForm, token: string) {
+export async function updatePost(id: String, oldValue: Post, newValue: PostForm, token: string) {
     const response = await fetch(`http://localhost:8080/api/articles/${id}`, {
         method: "PUT",
         headers: {

@@ -1,10 +1,11 @@
 package com.noface.newswebapi.service;
 
 import com.cloudinary.Cloudinary;
-import com.cloudinary.Transformation;
 import com.noface.newswebapi.cons.ArticleStatus;
-import com.noface.newswebapi.dto.request.ArticleRequest;
-import com.noface.newswebapi.dto.response.ArticleResponse;
+import com.noface.newswebapi.dto.request.article.ArticleCreateRequest;
+import com.noface.newswebapi.dto.request.article.ArticleStatusUpdateRequest;
+import com.noface.newswebapi.dto.request.article.ArticleUpdateRequest;
+import com.noface.newswebapi.dto.response.article.ArticleResponse;
 import com.noface.newswebapi.entity.Article;
 import com.noface.newswebapi.entity.Category;
 import com.noface.newswebapi.entity.User;
@@ -20,19 +21,16 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -61,8 +59,8 @@ public class ArticleService {
     @Autowired
     private Cloudinary cloudinary;
 
-    public ArticleResponse createNewArticle(ArticleRequest articleRequest) throws IOException {
-        Article article = articleMapper.asArticle(articleRequest);
+    public ArticleResponse createNewArticle(ArticleCreateRequest request) throws IOException {
+        Article article = articleMapper.asArticle(request);
         User author = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(() -> {
             throw new AppException(ErrorCode.MISSING_ARTICLE_AUTHOR);
@@ -90,7 +88,8 @@ public class ArticleService {
     }
 
 
-    public ArticleResponse updateArticle(Long articleId,  Article newArticleContent) {
+    public ArticleResponse updateArticle(String articleId,  ArticleUpdateRequest articleRequest) {
+        Article newArticleContent = articleMapper.asArticle(articleRequest);
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         Article oldArticle = articleRepository.getArticleById(articleId).orElseThrow(
                 () -> {
@@ -101,17 +100,6 @@ public class ArticleService {
                 categoryRepository.save(category);
             }
         }
-        if (newArticleContent.getStatus() != oldArticle.getStatus()) {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication instanceof JwtAuthenticationToken) {
-                log.info(authentication.getAuthorities().toString());
-                if (authentication.getAuthorities().stream().anyMatch(
-                        grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"))) {
-                    updateArticlePublishedStatus(oldArticle, newArticleContent.getStatus(), userRepository.findByUsername(username)
-                            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
-                }
-            }
-        }
 
         oldArticle.setLastUpdated(LocalDateTime.now());
         articleMapper.updateArticle(oldArticle, newArticleContent);
@@ -119,20 +107,20 @@ public class ArticleService {
         return response;
     }
 
-    @PreAuthorize("hasAuthority('ROLE_MODERATOR') || hasAuthority('ROLE_ADMIN')")
-    public void updateArticlePublishedStatus(Article article, ArticleStatus articleStatus, User moderator) {
+    public ArticleResponse updateArticleStatus(String articledId, ArticleStatusUpdateRequest articleStatus) {
+        Article article = articleRepository.getArticleById(articledId)
+                .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
         article.setLastUpdated(LocalDateTime.now());
-        article.setModerator(moderator);
-        article.setStatus(articleStatus);
+        article.setStatus(ArticleStatus.valueOf(articleStatus.getStatus()));
+        return articleMapper.toArticleResponse(articleRepository.save(article));
     }
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN') || hasAuthority('ROLE_MODERATOR')")
-    @PostAuthorize("returnObject.result.author.username == authentication.name")
     public List<Article> getAllArticles() {
         return articleRepository.findAll();
     }
 
-    public ArticleResponse getArticleById(Long id) {
+    public ArticleResponse getArticleById(String id) {
         return articleMapper.toArticleResponse(articleRepository.getArticleById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED)));
     }
@@ -142,9 +130,12 @@ public class ArticleService {
                                                          LocalDateTime startDate, LocalDateTime endDate,
                                                          ArticleStatus status, Pageable pageable) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
         if (authentication.getAuthorities().stream().anyMatch((grantedAuthority)
                 -> grantedAuthority.getAuthority().equals("ROLE_ADMIN")
                 || grantedAuthority.getAuthority().equals("ROLE_MODERATOR"))) {
+            articleRepository.findArticlesByIdContainingAndTitleContainingAndDateCreatedAfterAndDateCreatedBeforeAndStatus(
+                    id, title, startDate, endDate, status, pageable);
             return articleRepository.findArticlesWithFilter(id, title, null, authorName,
                     startDate, endDate, status, pageable).stream().map(articleMapper::toArticleResponse);
         } else {
@@ -154,7 +145,7 @@ public class ArticleService {
 
     }
 
-    public ArticleResponse removeArticleById(Long id) {
+    public ArticleResponse removeArticleById(String id) {
         Article article = articleRepository.getArticleById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
         ArticleResponse articleResponse = articleMapper.toArticleResponse(article);
@@ -162,13 +153,10 @@ public class ArticleService {
         return articleResponse;
     }
 
-    public long getNumberOfArticle() {
-        return articleRepository.count();
-    }
 
     public long getNumberOfArtilce(
             String title,
-            String id,
+            Long id,
             ArticleStatus articleStatus,
             LocalDateTime startDate,
             LocalDateTime endDate,
@@ -186,10 +174,15 @@ public class ArticleService {
         }
     }
 
-    public boolean isOwned(String username, Long articleId) {
+    public boolean isOwned(String username, String articleId) {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
         return article.getAuthor().getUsername().equals(username);
+    }
+    public List<ArticleResponse> getArticlesByUserId(String id, Pageable pageable){
+        User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        List<Article> articles = articleRepository.getArticleByAuthor_Id(id, pageable).stream().toList();
+        return articles.stream().map(articleMapper::toArticleResponse).collect(Collectors.toList());
     }
 
 }

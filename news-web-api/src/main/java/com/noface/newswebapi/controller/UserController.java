@@ -7,6 +7,7 @@ import com.noface.newswebapi.dto.response.UserCreateRespone;
 import com.noface.newswebapi.dto.response.UserRespone;
 import com.noface.newswebapi.entity.User;
 import com.noface.newswebapi.mapper.UserMapper;
+import com.noface.newswebapi.service.ArticleService;
 import com.noface.newswebapi.service.UserService;
 import jakarta.annotation.security.PermitAll;
 import lombok.*;
@@ -16,10 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -38,6 +36,8 @@ public class UserController {
     UserService userService;
     @Autowired
     UserMapper userMapper;
+    @Autowired
+    private ArticleService articleService;
 
     @PostMapping()
     @PermitAll()
@@ -48,7 +48,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or @userService.ownUserProfile(#id, authentication.name)")
-    public ApiResponse<UserRespone> getUserById(@PathVariable Long id) {
+    public ApiResponse<UserRespone> getUserById(@PathVariable String id) {
         UserRespone userRespone = userService.getUserById(id);
         ApiResponse<UserRespone> response = ApiResponse.<UserRespone>builder().result(userRespone).build();
         return response;
@@ -83,7 +83,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') || @userService.ownUserProfile(#id, authentication.name)")
-    public ApiResponse<UserRespone> updateUserById(@PathVariable Long id, @RequestBody UserUpdateRequest request) {
+    public ApiResponse<UserRespone> updateUserById(@PathVariable String id, @RequestBody UserUpdateRequest request) {
 
         UserRespone response = userService.updateUserById(id, userMapper.asUser(request));
         return ApiResponse.<UserRespone>builder().result(response).build();
@@ -94,11 +94,10 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ApiResponse<UserRespone> deleteUser(@PathVariable Long id) {
+    public ApiResponse<UserRespone> deleteUser(@PathVariable String id) {
         log.info("DELETE USER {}", id);
         return ApiResponse.<UserRespone>builder().result(userService.removeUser(id)).build();
     }
-
 
 
 

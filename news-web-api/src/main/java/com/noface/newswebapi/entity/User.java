@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.GenericGenerator;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -21,9 +22,10 @@ import java.util.Set;
 public class User {
     public static final String TABLE_NAME = "users";
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(generator = "uuid")
+    @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id")
-    private Long id;
+    private String id;
 
     @Size(min = 3, message = "INVALID_USERNAME")
         @Column(name = "username", unique = true)
@@ -53,5 +55,10 @@ public class User {
     @OneToMany(mappedBy = "author")
     Set<Article> createdArticles = new HashSet<>();
 
+    @OneToMany(mappedBy = "author")
+    Set<Comment> comments = new HashSet<>();
+
+    @OneToMany(mappedBy = "author")
+    Set<SavedList> savedLists = new HashSet<>();
 
 }

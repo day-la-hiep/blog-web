@@ -1,17 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Post } from "@/type/Post";
+import { Post } from "@/service/PostService";
 import { Bookmark, MoreHorizontal } from "lucide-react";
-interface ArticleCardProps{
+interface ArticleCardProps {
     post?: Post
 }
-const ArticleCard: React.FC<ArticleCardProps> =  function ArticleCard({post}) {
+const ArticleCard: React.FC<ArticleCardProps> = function ArticleCard({ post }) {
     return (
         <Card className="flex items-start p-4 border rounded-lg shadow-sm w-full">
             <div className="flex justify-between w-full gap-5">
                 <div className="flex-1 space-y-2">
                     <p className="text-sm text-gray-500">
-                        In <span className="font-medium">alphtitude</span> by <span className="font-medium">Roy Phang</span>
+                        By <span className="font-medium">{post?.authorName}</span>
                     </p>
                     <h2 className="text-lg font-bold">
                         {post?.title}
@@ -50,4 +50,4 @@ const ArticleCard: React.FC<ArticleCardProps> =  function ArticleCard({post}) {
     );
 }
 
-export default  ArticleCard
+export default ArticleCard

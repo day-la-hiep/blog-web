@@ -4,10 +4,10 @@ const adminDashboardPath = adminPath + "/dashboard"
 const adminCategoriesPath = adminPath + "/categories"
 const adminUsersPath = adminPath + "/users"
 const adminRoleManagePath = adminPath + "/roles"
+const adminLoginPath = adminPath + "/login"
 
 const blogPath = ""
-const blogPostPath = "/posts/:postId"
-const adminLoginPath = adminPath + "/login"
+const blogPostPath = "/posts/:id"
 export {
     adminPath,
     adminPostsPath,

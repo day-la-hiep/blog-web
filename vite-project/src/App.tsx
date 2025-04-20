@@ -13,11 +13,11 @@ import { adminCategoriesPath, adminDashboardPath, adminLoginPath, adminPath, adm
 import BlogLayout from './pages/blog/Layout'
 import Page from './pages/blog/post-detail/Page'
 import Test from './Test'
-import Login from './pages/cms/login/Login'
+import AdminLogin from './pages/cms/login/Login'
 import { useState } from 'react'
 import { fa } from '@faker-js/faker'
 import { AuthProvider, useAuthService } from './hooks/AuthProvider'
-
+import AdminProtectedRoute from './routes/AdminProtectedRoutes'
 function App() {
 
   return (
@@ -30,24 +30,21 @@ function App() {
         <AuthProvider >
           <Routes>
             <Route path={adminPath} element={<AdminPage />} >
-              <Route path={adminDashboardPath} element={<DashBoard />} ></Route>
-              <Route path={adminPostsPath} element={<ViewPostPage />}></Route>
-              <Route path={adminPostsPath + "/:id"} element={<ViewDetailPostPage />} />
-              <Route path={adminCategoriesPath} element={<CategoryManagementPage />}>
-              </Route>
-              <Route path={adminUsersPath} element={<UserManagementPage />}></Route>
+              <Route path={adminDashboardPath} element={<DashBoard />} />
+              <Route path={adminUsersPath} element={<UserManagementPage />} />
+              <Route path={adminPostsPath} element={<ViewPostPage />} />
+              <Route path={adminCategoriesPath} element={<CategoryManagementPage />} />
               <Route path={adminRoleManagePath} element={<RoleManagementPage />} />
+              <Route path={`${adminPostsPath}/:id`} element={<ViewDetailPostPage />} />
             </Route>
-            <Route path={adminLoginPath} element={<Login />}></Route>
+            <Route path={adminLoginPath} element={<AdminLogin />}></Route>
             <Route element={<BlogLayout />}>
               <Route path={blogPath} element={<MainContent />} ></Route>
-              {/* <Route path={blogPostPath} element={<Page />} /> */}
+              <Route path={blogPostPath} element={<Page />} />
             </Route>
 
 
 
-            <Route path="test/*" element={<Test />}></Route>
-            {/* <Route path='*' element={<ErrorPage />}></Route> */}
           </Routes>
         </AuthProvider>
       </BrowserRouter>

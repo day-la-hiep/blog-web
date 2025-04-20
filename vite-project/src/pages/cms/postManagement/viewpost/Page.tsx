@@ -9,7 +9,7 @@ import { NavLink } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { adminPostsPath } from '@/RouteDefinition'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PostFilter, deleteArticle, fetchNumberOfPost, fetchPosts, SortParam, updateArticleStatus } from "@/service/PostService";
+import { PostFilter, deletePost, fetchNumberOfPost as fetchPostCount, fetchPosts, SortParam, updateArticleStatus, fetchNumberOfPost } from "@/service/PostService";
 import { Post } from "@/type/type";
 
 
@@ -19,24 +19,28 @@ export default function Page() {
     const [previewSheetOpen, setPreviewSheetOpen] = useState(false)
     const [posts, setPosts] = useState<Post[]>([])
     const [currentPost, setCurrentPost] = useState<Post>()
-    const [page, setPage] = useState(0)
+    const [pageIndex, setPageIndex] = useState(0)
     const [pageSize, setPageSize] = useState(10)
-    const [numberOfPage, setNumberOfPage] = useState(0)
+    const [pageCount, setPageCount] = useState(0)
+    const [postCount, setPostCount] = useState(0)
     const [sortParam, setSortParam] = useState<SortParam>({
         "sortProperty": "id",
         "sortDirection": "asc",
     })
     const [filterParam, setFilterParam] = useState<PostFilter>()
-
+    useEffect(() => {
+        console.log("On change")
+        console.log("Page count %d Post count %d Page Index %d", pageCount, postCount, pageIndex)
+    }, [postCount, pageCount, pageIndex, postCount])
     const nextPage = () => {
-        if (page + 1 < numberOfPage) {
-            setPage(page + 1)
+        if (pageIndex + 1 < pageCount) {
+            setPageIndex(pageIndex + 1)
         }
     }
 
     const prevPage = () => {
-        if (page - 1 >= 0) {
-            setPage(page - 1)
+        if (pageIndex - 1 >= 0) {
+            setPageIndex(pageIndex - 1)
         }
     }
 
@@ -44,33 +48,45 @@ export default function Page() {
         setFilterParam(filterParam)
     }
 
-    useEffect(() => {
-        updatePostData(page, pageSize, sortParam, filterParam)
-    }, [filterParam, sortParam, pageSize, page])
-    const updatePostData = useCallback(async (page: number, pageSize: number,
-        sortParam: SortParam, filterParam?: PostFilter) => {
-        fetchPosts(page, pageSize, sortParam, filterParam).then(
-            (data) => setPosts(data)
-        )
-    }, [])
 
+    useEffect(function updatePostData() {
 
-    useEffect(() => { updatePagePagination(pageSize, filterParam) }, [pageSize, filterParam])
-    const updatePagePagination = useCallback(async function updatePagePagination(pageSize: number,
-        filterParam?: PostFilter
-    ) {
-        fetchNumberOfPost(filterParam).then((postCount) => {
-            console.log(postCount)
-            const newPageNumber = Math.ceil(postCount / pageSize)
-            setNumberOfPage(newPageNumber)
-            if (page < 0) {
-                setPage(0)
-            }
-            if (page > newPageNumber - 1) {
-                setPage(Math.max(0, newPageNumber - 1))
-            }
+        fetchPosts(pageIndex, pageSize, sortParam, filterParam).then(data => {
+            setPosts(data)
         })
-    }, [])
+    }, [filterParam, sortParam, pageSize, pageIndex, postCount])
+
+
+
+
+    useEffect(function updatePagePagination() { 
+        const newPageCount = Math.ceil(postCount / pageSize)
+
+        let newPageIndex = pageIndex
+        if (newPageIndex < 0) {
+            newPageIndex = 0
+        }
+        if (newPageIndex > newPageCount - 1) {
+            newPageIndex = Math.max(0, newPageCount - 1)
+        }
+        setPageIndex(newPageIndex)
+        setPageCount(newPageCount)
+    }, [pageIndex, pageSize, postCount])
+
+    useEffect(() => { 
+        fetchPostCount(filterParam).then(newPostCount => {
+            setPostCount(newPostCount)
+        })
+        
+    }, [filterParam])
+
+    const handleDelete = (id : string) =>{
+        deletePost(id).then(() => {
+            setPostCount(postCount => postCount - 1)
+        })
+
+    }
+
     return (
         <div className="w-full h-dvh overflow-hidden" >
             <PostPreviewSheet post={currentPost} open={previewSheetOpen} onClose={() => { setPreviewSheetOpen(false) }} ></PostPreviewSheet>
@@ -93,7 +109,6 @@ export default function Page() {
                 <FilterBar onFilterClicked={(filterParam) => {
                     onFilterClicked(filterParam)
                 }}></FilterBar>
-                <Separator className="my-1"></Separator>
                 {/* // Table */}
                 <div className="overflow-hidden flex flex-col">
                     <ViewPostTable data={posts} handleSheetPreviewClicked={(post: Post) => {
@@ -101,23 +116,13 @@ export default function Page() {
                         setCurrentPost(post)
                     }}
                         handleSortData={(sortProperty, sortDirection) => {
+                            
                             setSortParam({
                                 sortProperty: sortProperty,
                                 sortDirection: sortDirection,
                             })
                         }}
-                        handleDeletePost={(id) => {
-                            deleteArticle(id).then((res) => {
-                                if (res.code == 1000) {
-                                    const update = async () => {
-                                        await updatePagePagination(pageSize, filterParam)
-                                        await updatePostData(page, pageSize, sortParam, filterParam)
-                                    }
-                                    update().catch(console.error)
-
-                                }
-                            })
-                        }}
+                        handleDeletePost={handleDelete}
                         handleUpdatePostStatus={async (id: string, status: string) => {
                             const updateSuccess = await updateArticleStatus(id, status)
                             return updateSuccess
@@ -150,15 +155,15 @@ export default function Page() {
                             </Select>
                         </div>
                         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                            Page {page + 1} of{" "} {numberOfPage}
+                            Page {pageIndex + 1} of{" "} {pageCount}
                         </div>
 
                         <div className="flex items-center space-x-2">
                             <Button
                                 variant="outline"
                                 className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => setPage(0)}
-                                disabled={numberOfPage == 0}
+                                onClick={() => setPageIndex(0)}
+                                disabled={pageCount == 0}
                             >
                                 <span className="sr-only">Go to first page</span>
                                 <ChevronsLeft />
@@ -167,7 +172,7 @@ export default function Page() {
                                 variant="outline"
                                 className="h-8 w-8 p-0"
                                 onClick={prevPage}
-                                disabled={page <= 0}
+                                disabled={pageIndex <= 0}
                             >
                                 <span className="sr-only">Go to previous page</span>
                                 <ChevronLeft />
@@ -175,7 +180,7 @@ export default function Page() {
                             <Button
                                 variant="outline"
                                 className="h-8 w-8 p-0"
-                                disabled={page >= numberOfPage - 1}
+                                disabled={pageIndex >= pageCount - 1}
                                 onClick={nextPage}
                             >
                                 <span className="sr-only">Go to next page</span>
@@ -184,8 +189,8 @@ export default function Page() {
                             <Button
                                 variant="outline"
                                 className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => setPage(numberOfPage - 1)}
-                                disabled={numberOfPage == 0}
+                                onClick={() => setPageIndex(pageCount - 1)}
+                                disabled={pageCount == 0}
                             >
                                 <span className="sr-only">Go to last page</span>
                                 <ChevronsRight />

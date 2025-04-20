@@ -16,7 +16,7 @@ const baseUrl = "http://localhost:8080/api/";
 
 interface LoginFormProps {
 }
-const Login: React.FC<LoginFormProps> = () => {
+const AdminLogin: React.FC<LoginFormProps> = () => {
     const authService = useAuthService()
     const navigate = useNavigate()
     const form = useForm<FormData>({
@@ -26,7 +26,7 @@ const Login: React.FC<LoginFormProps> = () => {
         }
     })
     const onSubmit = async (value: FormData) => {
-        await authService.auth(value.username, value.password) 
+        await authService.auth(value.username, value.password)
         navigate(adminDashboardPath)
     };
 
@@ -66,4 +66,4 @@ const Login: React.FC<LoginFormProps> = () => {
     );
 };
 
-export default Login;
+export default AdminLogin;

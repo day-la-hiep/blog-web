@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.text.Normalizer;
 import java.util.stream.Stream;
 
 @Service
@@ -42,11 +41,6 @@ public class CategoryService {
         CategoryResponse response = categoryMapper.toCategoryResponse(categoryRepository.save(category));
         return response;
     }
-
-    public boolean isCategoryExist(String slug) {
-        return categoryRepository.getCategoryBySlug(slug).isPresent();
-    }
-
 
 
 }

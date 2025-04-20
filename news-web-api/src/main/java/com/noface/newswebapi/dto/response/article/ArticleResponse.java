@@ -1,16 +1,9 @@
-package com.noface.newswebapi.dto.response;
+package com.noface.newswebapi.dto.response.article;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.noface.newswebapi.entity.Article;
-import com.noface.newswebapi.entity.User;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
+import com.noface.newswebapi.dto.response.CategoryResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.mapstruct.Mapper;
-import org.springframework.format.annotation.DateTimeFormat;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,7 +12,6 @@ import java.util.List;
 @Builder
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ArticleResponse {
     String id;
     String title;

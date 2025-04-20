@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Post, uploadPostImage } from "@/service/PostService"
+import { Post, PostForm as EditPostForm, uploadPostImage, fetchPost, createPost, updatePost } from "@/service/PostService"
 
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
@@ -14,18 +14,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { adminPostsPath } from "@/RouteDefinition"
 import { uploadPostThumbnail } from "@/service/PostService"
 import { addTransformationsToCloudinaryUrl } from "@/service/CloudinaryService"
-type PostForm = {
-    title: string,
-    summary: string,
-    content: string,
-    categories: Category[],
-    thumbnailUrl: string,
-}
-type Category = {
-    name: string,
-    slug: string,
-    description: string,
-};
+import { Category, fetchCategories } from "@/service/CategoryService"
 
 
 
@@ -55,7 +44,7 @@ const EditPostComponent: React.FC<EditPostProps> = () => {
     };
     useEffect(() => {
         if (id != 'new-post') {
-            fetchPostById(authService.token, Number(id)).then((fetchedPost) => {
+            fetchPost(Number(id)).then((fetchedPost) => {
                 setPost(fetchedPost)
                 form.setValue("title", fetchedPost.title)
                 form.setValue("content", fetchedPost.content)
@@ -77,12 +66,12 @@ const EditPostComponent: React.FC<EditPostProps> = () => {
     }, [id])
 
     useEffect(() => {
-        fetchCategories(authService.token).then((categories) => {
+        fetchCategories().then((categories) => {
             setCurrentCategories(categories)
         })
     }, [])
 
-    const form = useForm<PostForm>({
+    const form = useForm<EditPostForm>({
         defaultValues: {
             title: "",
             content: "",
@@ -93,9 +82,9 @@ const EditPostComponent: React.FC<EditPostProps> = () => {
     })
 
 
-    function onSubmit(values: PostForm) {
+    function onSubmit(values: EditPostForm) {
         if (!post) {
-            createPost(values, authService.token).then((post) => {
+            createPost(values).then((post) => {
                 navigate(adminPostsPath + `/${post.id}`)
             })
         } else {
@@ -236,99 +225,11 @@ const EditPostComponent: React.FC<EditPostProps> = () => {
 
     )
 }
-async function fetchCategories(token: string) {
 
-    try {
-        const response = await fetch("http://localhost:8080/api/categories", {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            }
-        });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
 
-        const data = await response.json();
 
-        return data.result
-    } catch (error) {
-        console.error("Error fetching categories:", error);
-    }
-}
-async function createPost(postForm: PostForm, token: string) {
-    const url = "http://localhost:8080/api/articles";
-    const data = {
-        title: postForm.title,
-        summary: postForm.summary,
-        content: postForm.content,
-        status: "DRAFT",
-        categories: postForm.categories,
-        thumbNailUrl: "https://example.com/image.jpg"
-    };
 
-    try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-            },
-            body: JSON.stringify(data)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const apiResponse = await response.json();
-        return apiResponse.result
-    } catch (error) {
-        console.error("Error:", error);
-    }
-}
-
-async function fetchPostById(token: string, articleId: number) {
-    const url = `http://localhost:8080/api/articles/${articleId}`;
-    try {
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const apiRes = await response.json();
-
-        return apiRes.result
-    } catch (error) {
-        console.error("Error fetching article:", error);
-    }
-}
-async function updatePost(id: String, oldValue: Post, newValue: PostForm, token: string) {
-    const response = await fetch(`http://localhost:8080/api/articles/${id}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-            ...oldValue,
-            ...newValue
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-    }
-
-    return response.json();
-}
 
 
 export default EditPostComponent
