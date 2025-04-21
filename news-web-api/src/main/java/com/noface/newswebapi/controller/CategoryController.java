@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/categories")
+@RequestMapping("/api")
 public class CategoryController {
     @Autowired
     CategoryService categoryService;
@@ -20,34 +20,33 @@ public class CategoryController {
     @Autowired
     CategoryMapper categoryMapper;
 
-    @PostMapping
+    @PostMapping("/categories")
     public ApiResponse<CategoryResponse> createCategory(@RequestBody CategoryRequest request) {
         CategoryResponse response = categoryService.createCategory(categoryMapper.asCategory(request));
         return ApiResponse.<CategoryResponse> builder()
                 .result(response).build();
     }
 
-    @GetMapping
+    @GetMapping("/categories")
     public ApiResponse<List<CategoryResponse>> getCategories(){
-        List<CategoryResponse> categories = categoryService.getCategories()
-                .map((category -> categoryMapper.toCategoryResponse(category))).toList();
-
+       List<CategoryResponse> categoryResponses = categoryService.getCategories();
         return ApiResponse.<List<CategoryResponse>>builder()
-                .result(categories)
+                .result(categoryResponses)
                 .build();
     }
 
-    @PutMapping
+    @PutMapping("/categories/{slug}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR')")
-    public ApiResponse<CategoryResponse> updateCategory(@RequestBody CategoryRequest request){
-        CategoryResponse response = categoryService.updateCategory(categoryMapper.asCategory(request));
+    public ApiResponse<CategoryResponse> updateCategory(@RequestBody CategoryRequest request,
+                                                        @PathVariable("slug") String slug) {
+        CategoryResponse response = categoryService.updateCategory(slug, request);
         return ApiResponse.<CategoryResponse>builder()
                 .result(response).build();
     }
 
-    @DeleteMapping
+    @DeleteMapping("/category/{slug}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR')")
-    public ApiResponse<CategoryResponse> deleteCategoryById(@RequestParam("id") String slug){
+    public ApiResponse<CategoryResponse> deleteCategoryBySlug(@PathVariable("slug") String slug){
         CategoryResponse response = categoryService.deleteCategoryBySlug(slug);
         return ApiResponse.<CategoryResponse> builder()
                 .result(response)

@@ -21,7 +21,9 @@ import javax.crypto.spec.SecretKeySpec;
 public class SecurityConfig{
     private String[] postPermittedRequest = {"/api/auth/users", "/api/auth/introspect", "/api/users", "/api/images/upload"};
     private String[] getPermittedRequest = {"/api/articles/*", "/api/articles",
-            "/api/articles/*/thumbnail", "/api/articles/*/comments", "/api/articles/*/comments/*"};
+            "/api/articles/*/thumbnail", "/api/articles/*/comments", "/api/articles/*/comments/*",
+            "/api/categories", "/api/categories/*", "/api/users/*", "/api/users/*/articles",
+            "/api/categories/*/articles"};
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity httpSecurity) throws Exception {

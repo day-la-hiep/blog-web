@@ -3,17 +3,20 @@ package com.noface.newswebapi.service;
 import com.cloudinary.Cloudinary;
 import com.noface.newswebapi.cons.ArticleStatus;
 import com.noface.newswebapi.dto.ArticleOverview;
+import com.noface.newswebapi.dto.request.CategoryRequest;
 import com.noface.newswebapi.dto.request.article.ArticleCreateRequest;
 import com.noface.newswebapi.dto.request.article.ArticleUpdateRequest;
 import com.noface.newswebapi.dto.response.article.ArticleOverviewResponse;
 import com.noface.newswebapi.dto.response.article.ArticleResponse;
 import com.noface.newswebapi.entity.Article;
+import com.noface.newswebapi.entity.ArticleCategory;
 import com.noface.newswebapi.entity.Category;
 import com.noface.newswebapi.entity.User;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
 import com.noface.newswebapi.mapper.ArticleMapper;
 import com.noface.newswebapi.mapper.CategoryMapper;
+import com.noface.newswebapi.repository.ArticleCategoryRepository;
 import com.noface.newswebapi.repository.ArticleRepository;
 import com.noface.newswebapi.repository.CategoryRepository;
 import com.noface.newswebapi.repository.UserRepository;
@@ -23,8 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -53,6 +54,8 @@ public class ArticleService {
     @Autowired
     private CategoryRepository categoryRepository;
     @Autowired
+    private ArticleCategoryRepository articleCategoryRepository;
+    @Autowired
     private CategoryService categoryService;
     @Autowired
     private CategoryMapper categoryMapper;
@@ -61,52 +64,88 @@ public class ArticleService {
     @Autowired
     private Cloudinary cloudinary;
 
+
     public ArticleResponse createNewArticle(ArticleCreateRequest request) throws IOException {
         Article article = articleMapper.asArticle(request);
         User author = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(() -> {
-            throw new AppException(ErrorCode.MISSING_ARTICLE_AUTHOR);
-        });
+                    throw new AppException(ErrorCode.MISSING_ARTICLE_AUTHOR);
+                });
         Article newArticle = new Article();
         articleMapper.updateArticle(newArticle, article);
-        newArticle.setCategories(new HashSet<>());
+        newArticle.setArticleCategories(new HashSet<>());
         newArticle.setDateCreated(LocalDateTime.now());
         newArticle.setLastUpdated(LocalDateTime.now());
         newArticle.setStatus(ArticleStatus.DRAFT.getName());
-        for (Category categoryItem : article.getCategories()) {
-            String slug;
-            if (categoryItem.getSlug() != null) {
-                slug = categoryItem.getSlug();
-            } else {
-                slug = categoryMapper.nameToSlug(categoryItem.getName());
-            }
-            Category category = categoryRepository.save(Category.builder().slug(slug).name(categoryItem.getName()).build());
-
-            newArticle.getCategories().add(category);
-        }
         newArticle.setAuthor(author);
-        Article savedArticle = articleRepository.save(newArticle);
-        return articleMapper.toArticleResponse(savedArticle);
+        for (CategoryRequest categoryRequest : request.getCategories()) {
+            String slug;
+            if (categoryRequest.getSlug() == null || categoryRequest.getSlug().isEmpty()) {
+                slug = categoryMapper.nameToSlug(categoryRequest.getName());
+            } else {
+                slug = categoryRequest.getSlug();
+            }
+            Category category;
+            if (categoryRepository.existsBySlug(slug)) {
+                category = categoryRepository.getBySlug(slug);
+            } else {
+                category = categoryRepository.saveAndFlush(
+                        Category.builder()
+                                .name(categoryRequest.getName())
+                                .slug(slug)
+                                .build()
+                );
+            }
+            newArticle.getArticleCategories().add(
+                    ArticleCategory.builder()
+                            .article(newArticle)
+                            .category(category)
+                            .build()
+            );
+
+        }
+        newArticle = articleRepository.save(newArticle);
+
+        return articleMapper.toArticleResponse(newArticle);
     }
 
 
-    public ArticleResponse updateArticle(String articleId,  ArticleUpdateRequest articleRequest) {
-        Article newArticleContent = articleMapper.asArticle(articleRequest);
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        Article oldArticle = articleRepository.getArticleById(articleId).orElseThrow(
-                () -> {
-                    throw new AppException(ErrorCode.ARTICLE_NOT_EXISTED);
-                });
-        if(newArticleContent.getCategories() != null) {
-            for (Category category : newArticleContent.getCategories()) {
-                categoryRepository.save(category);
+    public ArticleResponse updateArticle(String articleId, ArticleUpdateRequest articleRequest) {
+        Article article = articleRepository.getArticleById(articleId)
+                .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
+        articleMapper.updateArticle(article, articleRequest);
+        List<ArticleCategory> articleCategories = articleCategoryRepository
+                .findArticleCategoryByArticle_Id(article.getId());
+        List<String> categorySlugs = articleRequest.getCategories()
+                .stream()
+                .map(CategoryRequest::getSlug)
+                .collect(Collectors.toList());
+        for (ArticleCategory articleCategory : articleCategories) {
+            if (!categorySlugs.contains(articleCategory.getCategory().getSlug())) {
+                articleCategoryRepository.delete(articleCategory);
             }
         }
-
-        oldArticle.setLastUpdated(LocalDateTime.now());
-        articleMapper.updateArticle(oldArticle, newArticleContent);
-        ArticleResponse response = articleMapper.toArticleResponse(articleRepository.save(oldArticle));
-        return response;
+        for (CategoryRequest categoryRequest : articleRequest.getCategories()) {
+            String categorySlug = categoryRequest.getSlug();
+            String name = categoryRequest.getName();
+            if (articleCategories.stream().noneMatch(ac -> ac.getCategory().getSlug().equals(categorySlug))) {
+                Category category = categoryRepository.getCategoryBySlug(categorySlug).orElse(
+                        categoryRepository.save(
+                                Category.builder()
+                                        .slug(categorySlug)
+                                        .name(name)
+                                        .build()
+                        )
+                );
+                articleCategoryRepository.save(
+                        ArticleCategory.builder()
+                                .article(article)
+                                .category(category)
+                                .build()
+                );
+            }
+        }
+        return articleMapper.toArticleResponse(article);
     }
 
     public ArticleResponse updateArticleStatus(String articledId, String status) {
@@ -162,11 +201,19 @@ public class ArticleService {
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
         return article.getAuthor().getUsername().equals(username);
     }
-    public List<ArticleResponse> getArticlesByUserId(String id, Pageable pageable){
+
+    public List<ArticleResponse> getArticlesByUserId(String id, Pageable pageable) {
         User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         List<Article> articles = articleRepository.getArticleByAuthor_Id(id, pageable).stream().toList();
         return articles.stream().map(articleMapper::toArticleResponse).collect(Collectors.toList());
     }
 
+    public List<ArticleOverviewResponse> getArticlesByCategorySlug(String categorySlug, Pageable pageable) {
+        Page<ArticleOverview> articleOverviews = articleRepository.getArticlesByCategorySlug(categorySlug, pageable);
+        return articleOverviews
+                .stream()
+                .map(articleMapper::toArticleOverviewResponse)
+                .collect(Collectors.toList());
+    }
 }
 

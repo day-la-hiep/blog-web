@@ -1,5 +1,6 @@
 package com.noface.newswebapi.service;
 
+import com.noface.newswebapi.dto.request.CategoryRequest;
 import com.noface.newswebapi.dto.response.CategoryResponse;
 import com.noface.newswebapi.entity.Category;
 import com.noface.newswebapi.exception.AppException;
@@ -10,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -19,8 +22,8 @@ public class CategoryService {
     @Autowired
     private CategoryMapper categoryMapper;
 
-    public Stream<Category> getCategories() {
-        return categoryRepository.getDistinctCategory(Pageable.unpaged()).stream();
+    public List<CategoryResponse> getCategories() {
+        return categoryRepository.findAll(Pageable.unpaged()).stream().map(categoryMapper::toCategoryResponse).collect(Collectors.toList());
     }
 
     public CategoryResponse deleteCategoryBySlug(String slug) {
@@ -32,7 +35,10 @@ public class CategoryService {
         return categoryMapper.toCategoryResponse(category);
     }
 
-    public CategoryResponse updateCategory(Category category) {
+    public CategoryResponse updateCategory(String slug, CategoryRequest request) {
+        Category category = categoryRepository.getCategoryBySlug(slug)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
+        categoryMapper.updateCategory(category, request);
         CategoryResponse response = categoryMapper.toCategoryResponse(categoryRepository.save(category));
         return response;
     }

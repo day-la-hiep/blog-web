@@ -5,6 +5,7 @@ import com.noface.newswebapi.dto.response.CategoryResponse;
 import com.noface.newswebapi.entity.Category;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
 
 import java.text.Normalizer;
@@ -61,4 +62,6 @@ public interface CategoryMapper {
         }
         return result.toString().trim();
     }
+
+    void updateCategory(@MappingTarget Category category, CategoryRequest request);
 }

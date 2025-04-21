@@ -7,19 +7,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, String> {
-    Category getCategoryByName(String categoryName);
     Optional<Category> getCategoryBySlug(String slug);
 
 
-    @Query("SELECT c FROM Category c WHERE c.id IN (" +
-            "SELECT MIN(c2.id) FROM Category c2 GROUP BY c2.slug" +
-            ")")
-    Page<Category> getDistinctCategory(Pageable pageable);
+    List<Category> findAll();
 
-    boolean existsCategoriesBySlug(String slug);
+    boolean existsBySlug(String slug);
 
+    Category getBySlug(String slug);
 }

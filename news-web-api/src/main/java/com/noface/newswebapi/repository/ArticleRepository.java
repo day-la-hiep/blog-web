@@ -1,6 +1,5 @@
 package com.noface.newswebapi.repository;
 
-import com.noface.newswebapi.cons.ArticleStatus;
 import com.noface.newswebapi.dto.ArticleOverview;
 import com.noface.newswebapi.entity.Article;
 import org.springframework.data.domain.Page;
@@ -63,7 +62,22 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
     Page<Article> findArticlesByAuthor_Username(String username, Pageable pageable);
 
     Page<Article> getArticleByAuthor_Id(String authorId, Pageable pageable);
-
-
-
+    @Query(value = """
+    SELECT NEW com.noface.newswebapi.dto.ArticleOverview(
+        a.id,
+        a.title,
+        a.summary,
+        a.dateCreated,
+        a.lastUpdated,
+        a.author.fullname,
+        a.status,
+        a.thumbnailUrl
+    )
+    FROM Article a
+    JOIN a.articleCategories c
+    WHERE c.category.slug = :categorySlug
+    """)
+    Page<ArticleOverview> getArticlesByCategorySlug(
+            @Param("categorySlug") String categorySlug,
+            Pageable pageable);
 }

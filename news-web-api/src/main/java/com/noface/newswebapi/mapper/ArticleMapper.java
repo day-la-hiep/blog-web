@@ -14,12 +14,17 @@ import org.mapstruct.*;
 public interface ArticleMapper {
     @Mapping(target = "id", ignore = true)
     public Article asArticle(ArticleRequest request);
-    
+
+
     public Article asArticle(ArticleUpdateRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     public void updateArticle(@MappingTarget Article article, Article articleUpdate);
 
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+
+    @Mapping(target = "articleCategories", ignore = true)
+    public void updateArticle(@MappingTarget Article article, ArticleUpdateRequest articleUpdate);
 
     @Mapping(target = "author", source = "author.fullname")
     public ArticleResponse toArticleResponse(Article article);

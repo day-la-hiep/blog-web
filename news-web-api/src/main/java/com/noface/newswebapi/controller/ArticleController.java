@@ -2,7 +2,6 @@ package com.noface.newswebapi.controller;
 
 import com.noface.newswebapi.cons.ArticleStatus;
 import com.noface.newswebapi.dto.request.article.ArticleCreateRequest;
-import com.noface.newswebapi.dto.request.article.ArticleStatusUpdateRequest;
 import com.noface.newswebapi.dto.request.article.ArticleUpdateRequest;
 import com.noface.newswebapi.dto.response.ApiResponse;
 
@@ -189,6 +188,23 @@ public class ArticleController {
                 )));
         return ApiResponse.<List<ArticleResponse>>builder()
                 .result(articleService.getArticlesByUserId(userId, pageable))
+                .build();
+    }
+
+    @GetMapping("/categories/{categorySlug}/articles")
+    public ApiResponse<List<ArticleOverviewResponse>> getArticlesByCategory(
+            @PathVariable String categorySlug,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "100") Integer limit,
+            @RequestParam(defaultValue = "id") String sortBy
+    ) {
+        Pageable pageable = PageRequest.of(page, limit,
+                Sort.by(Sort.Direction.fromString(
+                        sortBy.startsWith("-") ? "desc" : "asc"),
+                        sortBy.replace("+", "").replace("-", ""
+                )));
+        return ApiResponse.<List<ArticleOverviewResponse>>builder()
+                .result(articleService.getArticlesByCategorySlug(categorySlug, pageable))
                 .build();
     }
 }

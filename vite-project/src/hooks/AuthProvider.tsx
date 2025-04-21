@@ -1,114 +1,106 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { jwtDecode } from 'jwt-decode';
-import { fa } from "@faker-js/faker";
+import { authenticate, verifyToken } from "@/service/UserService";
 import { boolean } from "zod";
-import { useNavigate } from "react-router-dom";
-import { adminDashboardPath, adminLoginPath } from "@/RouteDefinition";
 
 
+
+interface TokenInfo {
+    iss: string;       // issuer
+    sub: string;       // subject (username, userid…)
+    exp: number;       // expiration time (UNIX timestamp)
+    iat: number;       // issued-at time (UNIX timestamp)
+    scope: string;     // ví dụ: "ROLE_USER ROLE_ADMIN"
+}
+export function getTokenInfo(token: string): TokenInfo {
+    return jwtDecode<TokenInfo>(token);
+}
+interface UserInfo {
+    username: string,
+    scope: string[]
+}
 type AuthValue = {
     token: string,
-    auth: Function,
-    verifyToken: Function,
-    tokenInfo: any
+    auth: (username : string, password : string) => Promise<boolean | null>,
+    logout: Function,
+    userInfo: UserInfo | null
 }
-
 const AuthContext = createContext<AuthValue>({
     token: "",
-    auth: () => { },
-    verifyToken: Function,
-    tokenInfo: null
+    auth: () => Promise.resolve(null),
+    logout: () => {},
+    userInfo: null
 });
-const baseUrl = "http://localhost:8080"
 interface AuthProviderProps {
     children: ReactNode
 }
 const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem("token") || "")
-    const tokenInfo = useRef(null)
+    const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
     useEffect(() => {
-        verifyToken()
+
+        if (token !== "") {
+            verifyToken(token).then((res) => {
+                if (res.valid == false) {
+                    localStorage.removeItem("token")
+                    setToken("")
+                } else {
+                    localStorage.setItem("token", token)
+                    const tokenInfo = getTokenInfo(token)
+                    setUserInfo({
+                        username: tokenInfo.sub,
+                        scope: tokenInfo.scope.split(" ")
+                    })
+                }
+            })
+        }
     }, [token])
 
     const auth = useCallback(async (username: string, password: string) => {
         try {
-            const response = await fetch(`${baseUrl}/api/auth/users`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    username: username,
-                    password: password,
-                }),
-            });
-            const res = await response.json()
-
-            if (res.result.authenticated == true) {
-                localStorage.setItem("token", res.result.token)
-                alert(res.result.token)
-                setToken(res.result.token)
-                tokenInfo.current = getTokenInfo(res.result.token)
+            const result = await authenticate(username, password)
+            if(result.authenticated == true){
+                localStorage.setItem("token", result.token)
+                setToken(result.token)
             }
+            return result.authenticated
+
         } catch (error) {
             console.error("Error fetching data:", error);
-            return null;
+            return false;
         }
 
     }, [])
+    const logout = useCallback(() => {
+        localStorage.removeItem("token")
+        setToken("")
+        setUserInfo(null)
+        setToken("")
+    }, [])
 
 
-    const verifyToken = useCallback(async () => {
-        if (localStorage.getItem("token") != "") {
-            try {
-                const response = await fetch(`${baseUrl}/api/auth/introspect`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        token: localStorage.getItem("token")
-                    })
-                })
-                const res = await response.json()
-                const valid = res.result.valid
-                if (valid == false) {
-                    localStorage.setItem("token", "")
-                } else {
-                    tokenInfo.current = getTokenInfo(token)
-                }
-            } catch (e) {
-            } finally {
-            }
-        } else {
-            console.log("Token not found")
-        }
-    }, [token])
 
 
 
     return (
-        <AuthContext.Provider value={{ token, auth,  verifyToken, tokenInfo}}>
+        <AuthContext.Provider value={{ token, auth,  logout, userInfo }}>
             {children}
         </AuthContext.Provider>
     )
 
 
 }
-const getTokenInfo = (token: string) => {
-    const payload = token.split(".")[1]
-    const decodedPayload = atob(payload)
-    const jsonPayload = JSON.parse(decodedPayload)
-    return jsonPayload
-}
-const getUserNameFromToken = (token: string) => {
-    try {
-        const decoded = jwtDecode(token)
-        return decoded.sub;
-    } catch (error) {
-        console.error('Invalid token or error decoding:', error);
-        return null;
-    }
-};
+
+
+
+
 
 const useAuthService = () => {
-    return useContext(AuthContext)
+    const context = useContext(AuthContext)
+    if (context === undefined) {
+        console.error('Missing auth provider when using useAuthService')
+    }
+    return context
 }
 export {
     useAuthService,

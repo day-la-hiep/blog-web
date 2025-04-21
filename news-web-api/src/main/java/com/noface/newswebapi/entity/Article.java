@@ -51,8 +51,9 @@ public class Article {
     @Column(name = "thumbnailUrl")
     String thumbnailUrl;
 
-    @OneToMany(mappedBy = "article", fetch = FetchType.LAZY)
-    Set<Category> categories;
+    @OneToMany(mappedBy = "article", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    Set<ArticleCategory> articleCategories;
 
     @ManyToOne
     @NotNull

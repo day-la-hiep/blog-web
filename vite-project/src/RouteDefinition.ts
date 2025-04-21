@@ -8,6 +8,7 @@ const adminLoginPath = adminPath + "/login"
 
 const blogPath = ""
 const blogPostPath = "/posts/:id"
+const userSettingPath = "/me/settings"
 export {
     adminPath,
     adminPostsPath,
@@ -17,5 +18,6 @@ export {
     adminRoleManagePath,
     blogPath,
     blogPostPath,
-    adminLoginPath
+    adminLoginPath,
+    userSettingPath
 }

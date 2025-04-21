@@ -1,0 +1,362 @@
+
+openapi: 3.0.3
+info:
+  title: Blog Web API
+  version: 1.0.1
+  description: |
+    API cho hệ thống blog nơi người dùng có thể viết bài, bình luận, lưu bài, theo dõi tác giả. Có phân quyền giữa User, Moderator và Admin.
+
+servers:
+  - url: /api/v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [user, moderator, admin] }
+
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string }
+        password: { type: string }
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username: { type: string }
+        email: { type: string }
+        password: { type: string }
+
+    Article:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        content: { type: string }
+        categoryId: { type: integer }
+        imageUrl: { type: string }
+
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        content: { type: string }
+        parentId: { type: integer, nullable: true }
+        articleId: { type: integer }
+        userId: { type: integer }
+
+    SavedList:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    Follow:
+      type: object
+      properties:
+        userId: { type: integer }
+        authorId: { type: integer }
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /auth/login:
+    post:
+      summary: Đăng nhập
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        '200': { description: Token JWT }
+
+  /auth/register:
+    post:
+      summary: Đăng ký
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        '201': { description: Tài khoản được tạo }
+
+  /users:
+    get:
+      summary: Lấy danh sách người dùng (Admin)
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200': { description: Danh sách người dùng }
+
+  /users/{id}:
+    put:
+      summary: Sửa thông tin người dùng (Admin)
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/User' }
+      responses:
+        '200': { description: Thông tin người dùng đã được cập nhật }
+
+  /articles:
+    get:
+      summary: Lấy danh sách bài viết
+      parameters:
+        - name: categoryId
+          in: query
+          schema: { type: integer }
+        - name: authorId
+          in: query
+          schema: { type: integer }
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200': { description: Danh sách bài viết }
+
+    post:
+      summary: Tạo bài viết mới (User, Moderator)
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                content: { type: string }
+                categoryId: { type: integer }
+                imageUrl: { type: string }
+      responses:
+        '201': { description: Bài viết đã được tạo }
+
+  /articles/{id}:
+    get:
+      summary: Lấy chi tiết bài viết
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Thông tin bài viết }
+
+    put:
+      summary: Sửa bài viết
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Bài viết đã được cập nhật }
+
+    delete:
+      summary: Xóa bài viết
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Bài viết đã bị xóa }
+
+  /articles/{id}/request-publish:
+    post:
+      summary: Gửi yêu cầu duyệt bài viết (User)
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Đã gửi yêu cầu duyệt }
+
+  /articles/{id}/approve:
+    post:
+      summary: Duyệt bài viết (Moderator)
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Đã duyệt bài viết }
+
+  /categories:
+    post:
+      summary: Tạo danh mục (User, Moderator)
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '201': { description: Đã tạo danh mục }
+
+    get:
+      summary: Lấy danh sách danh mục
+      responses:
+        '200': { description: Danh sách danh mục }
+
+  /categories/{id}:
+    put:
+      summary: Cập nhật danh mục (Moderator)
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '200': { description: Danh mục đã được cập nhật }
+
+    delete:
+      summary: Xóa danh mục (Moderator)
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Đã xóa danh mục }
+
+  /comments:
+    get:
+      summary: Lấy bình luận
+      parameters:
+        - name: articleId
+          in: query
+          schema: { type: integer }
+        - name: parentId
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: Danh sách bình luận }
+
+    post:
+      summary: Tạo bình luận
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content, articleId]
+              properties:
+                content: { type: string }
+                articleId: { type: integer }
+                parentId: { type: integer, nullable: true }
+      responses:
+        '201': { description: Đã tạo bình luận }
+
+  /comments/{id}:
+    put:
+      summary: Sửa bình luận
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        '200': { description: Đã cập nhật bình luận }
+
+    delete:
+      summary: Xóa bình luận
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Đã xóa bình luận }
+
+  /follow:
+    post:
+      summary: Theo dõi tác giả
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Follow' }
+      responses:
+        '200': { description: Đã theo dõi }
+
+  /saved-lists:
+    get:
+      summary: Lấy danh sách đã lưu
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200': { description: Danh sách lưu }
+
+    post:
+      summary: Tạo danh sách lưu bài viết
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedList' }
+      responses:
+        '201': { description: Đã tạo danh sách }
+

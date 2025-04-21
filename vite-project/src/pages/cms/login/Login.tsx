@@ -27,6 +27,7 @@ const AdminLogin: React.FC<LoginFormProps> = () => {
     })
     const onSubmit = async (value: FormData) => {
         await authService.auth(value.username, value.password)
+        
         navigate(adminDashboardPath)
     };
 

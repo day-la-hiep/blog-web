@@ -92,7 +92,24 @@ export async function fetchNumberOfPost(
     const res = await response.json();
     return res.result;
 }
-
+export async function fetchPostByCategories(
+    page: number = 0,  
+    limit: number = 10,
+    categorySlug: string,
+) {
+    const url = `http://localhost:8080/api/categories/${categorySlug}/articles?page=${page}&size=${limit}`;
+    const response = await fetch(url, {
+        method: "GET"
+    })
+    if (!response.ok) {
+        throw new Error(`Error fetching posts: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    if(data.code != 1000){
+        throw new Error(`Error fetching posts: ${data}`);
+    }
+    return data.result
+}
 
 
 export async function fetchPosts(
@@ -101,7 +118,6 @@ export async function fetchPosts(
     sortParam?: SortParam,
     filterParam?: PostFilter,
 ) {
-    const token = localStorage.getItem("token");
     let url = new URL(`http://localhost:8080/api/articles`);
     let params = new URLSearchParams();
 
@@ -145,7 +161,6 @@ export async function fetchPosts(
     const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
-            'Authorization': `Bearer ${token}`,
         },
     });
 

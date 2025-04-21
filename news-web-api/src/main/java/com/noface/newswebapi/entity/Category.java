@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.validator.constraints.UniqueElements;
 import org.springframework.validation.annotation.Validated;
 
 import java.awt.image.ImageProducer;
@@ -23,7 +24,7 @@ public class Category {
     @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
     String id;
 
-    @Column(name = "slug")
+    @Column(name = "slug", unique = true, nullable = false)
     String slug;
 
     @Column(name = "description", columnDefinition = "TEXT")
@@ -33,7 +34,8 @@ public class Category {
 
     boolean isVisible;
 
-    @ManyToOne()
-    @JoinColumn(name = "articleId")
-    Article article;
+    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+
+    Set<ArticleCategory> articleCategories;
 }
