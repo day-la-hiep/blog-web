@@ -20,7 +20,8 @@ public enum ErrorCode {
     ADD_COMMENT_FAILED(1011, "Add comment failed"),
     SAVED_LIST_NOT_EXISTED(1012, "Saved list not existed" ),
 
-    ;
+    SAVED_ARTICLE_NOT_EXISTED(1013,"Saved article not existed" ),
+    ARTICLE_ALREADY_IN_SAVED_LIST(1014, "Article already in this saved list");
 
 
     ErrorCode(int code, String message){

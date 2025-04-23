@@ -1,11 +1,14 @@
 package com.noface.newswebapi.service;
 
+import com.noface.newswebapi.dto.request.UserCreateRequest;
+import com.noface.newswebapi.dto.request.UserUpdateRequest;
+import com.noface.newswebapi.dto.response.UserCreateRespone;
 import com.noface.newswebapi.dto.response.UserRespone;
 import com.noface.newswebapi.entity.Role;
 import com.noface.newswebapi.entity.User;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
-import com.noface.newswebapi.mapper.UserMapper;
+import com.noface.newswebapi.dto.mapper.UserMapper;
 import com.noface.newswebapi.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.*;
@@ -13,11 +16,13 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
-import java.util.stream.Stream;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -31,7 +36,8 @@ public class UserService {
     UserMapper userMapper;
     @Autowired
     PasswordEncoder passwordEncoder;
-    public User createUser(User user){
+    public UserCreateRespone createUser(UserCreateRequest userCreateRequest) {
+        User user = userMapper.asUser(userCreateRequest);
         if(userRepository.existsByUsername(user.getUsername())){
             throw new AppException(ErrorCode.USERNAME_EXISTED);
         }
@@ -40,7 +46,7 @@ public class UserService {
 //        User user = userRepository.save
         user.setRoles(new HashSet<>());
         user.getRoles().add(Role.builder().name("USER").build());
-        return userRepository.save(user);
+        return userMapper.toUserCreateResponse(userRepository.save(user));
 
     }
 
@@ -64,9 +70,9 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public Stream<User> getUsers(Pageable pageable){
-        Page<User> users = userRepository.findAll(pageable);
-        return users.stream();
+    public List<UserRespone> getUsers(String search, Pageable pageable){
+        Page<User> users = userRepository.findAllWithFilters(search, pageable);
+        return users.stream().map(userMapper::toUserRespone).collect(Collectors.toList());
     }
 
 
@@ -86,5 +92,21 @@ public class UserService {
 
     public boolean userExisted(String username){
         return userRepository.existsByUsername(username);
+    }
+
+    public UserRespone getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        return userMapper.toUserRespone(userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
+    }
+
+    public UserRespone updateCurrentUser(UserUpdateRequest userUpdateRequest){
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username).orElseThrow(
+                () -> new AppException(ErrorCode.USER_NOT_EXISTED)
+        );
+        userMapper.updateuser(user, userMapper.asUser(userUpdateRequest));
+        return userMapper.toUserRespone(userRepository.save(user));
     }
 }

@@ -3,7 +3,7 @@ package com.noface.newswebapi.controller;
 import com.noface.newswebapi.dto.request.CategoryRequest;
 import com.noface.newswebapi.dto.response.ApiResponse;
 import com.noface.newswebapi.dto.response.CategoryResponse;
-import com.noface.newswebapi.mapper.CategoryMapper;
+import com.noface.newswebapi.dto.mapper.CategoryMapper;
 import com.noface.newswebapi.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;

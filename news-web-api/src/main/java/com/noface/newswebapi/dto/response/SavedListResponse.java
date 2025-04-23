@@ -12,7 +12,7 @@ import java.util.Set;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SavedListResponse {
-    Long id;
+    String id;
     String name;
     String authorUsername;
 }

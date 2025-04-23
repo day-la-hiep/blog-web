@@ -34,8 +34,11 @@ public class User {
     @Column(name = "password")
     String password;
 
-    @Column(name = "fullname")
-    String fullname;
+    @Column(name = "firstName")
+    String firstName;
+
+    @Column(name = "lastName")
+    String lastName;
 
     @Column(name = "mail", unique = true)
     String mail;

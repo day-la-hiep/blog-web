@@ -1,5 +1,6 @@
-package com.noface.newswebapi.mapper;
+package com.noface.newswebapi.dto.mapper;
 
+import com.noface.newswebapi.dto.request.CommentRequest;
 import com.noface.newswebapi.dto.response.CommentResponse;
 import com.noface.newswebapi.entity.Comment;
 import org.mapstruct.*;
@@ -7,7 +8,7 @@ import org.mapstruct.*;
 @Mapper(componentModel = "spring")
 public interface CommentMapper {
 
-    public Comment asComment(com.noface.newswebapi.dto.request.CommentRequest commentRequest);
+    public Comment asComment(CommentRequest commentRequest);
     @Mapping(target = "authorUsername", source = "author.username")
     @Mapping(target = "parentArticleId", source = "parentArticle.id")
     public CommentResponse toCommentResponse(Comment comment);

@@ -15,7 +15,9 @@ public class UserCreateRequest {
 
     String password;
 
-    String fullname;
+    String firstName;
+
+    String lastName;
 
     String mail;
 

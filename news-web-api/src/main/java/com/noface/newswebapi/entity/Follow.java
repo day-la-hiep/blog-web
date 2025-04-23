@@ -1,5 +1,6 @@
 package com.noface.newswebapi.entity;
 
+
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -12,26 +13,24 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @AllArgsConstructor
 @NoArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class SavedArticle {
+public class Follow {
     @Id
     @GeneratedValue(generator = "uuid")
     @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
     String id;
 
     @ManyToOne
-    @JoinColumn(name = "savedListId")
-    SavedList savedList;
+    @JoinColumn(name = "author_id")
+    User author;
 
     @ManyToOne
-    @JoinColumn(name = "articleId")
-    Article article;
-    @Column
-    String note;
+    @JoinColumn(name = "follower_id")
+    User follower;
 
-    @Column
-    @DateTimeFormat
-    LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "createAt")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    LocalDateTime createdAt;
 }

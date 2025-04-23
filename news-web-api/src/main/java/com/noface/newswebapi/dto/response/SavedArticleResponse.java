@@ -1,6 +1,5 @@
-package com.noface.newswebapi.dto.request;
+package com.noface.newswebapi.dto.response;
 
-import com.noface.newswebapi.entity.Comment;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -9,6 +8,7 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class CommentRequest {
-    String content;
+public class SavedArticleResponse {
+    String id;
+    String note;
 }

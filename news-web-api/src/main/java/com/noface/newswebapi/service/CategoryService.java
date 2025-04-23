@@ -5,7 +5,7 @@ import com.noface.newswebapi.dto.response.CategoryResponse;
 import com.noface.newswebapi.entity.Category;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
-import com.noface.newswebapi.mapper.CategoryMapper;
+import com.noface.newswebapi.dto.mapper.CategoryMapper;
 import com.noface.newswebapi.repository.CategoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class CategoryService {

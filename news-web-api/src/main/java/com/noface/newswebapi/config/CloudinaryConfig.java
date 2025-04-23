@@ -1,6 +1,7 @@
 package com.noface.newswebapi.config;
 
 import com.cloudinary.Cloudinary;
+import com.mysql.cj.x.protobuf.MysqlxDatatypes;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

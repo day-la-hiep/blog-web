@@ -14,8 +14,8 @@ import com.noface.newswebapi.entity.Category;
 import com.noface.newswebapi.entity.User;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
-import com.noface.newswebapi.mapper.ArticleMapper;
-import com.noface.newswebapi.mapper.CategoryMapper;
+import com.noface.newswebapi.dto.mapper.ArticleMapper;
+import com.noface.newswebapi.dto.mapper.CategoryMapper;
 import com.noface.newswebapi.repository.ArticleCategoryRepository;
 import com.noface.newswebapi.repository.ArticleRepository;
 import com.noface.newswebapi.repository.CategoryRepository;
@@ -167,12 +167,12 @@ public class ArticleService {
 
 
     public Stream<ArticleOverviewResponse> getArticlesWithFilter(
-            String id, String title,
+            String search,
             LocalDateTime startDate, LocalDateTime endDate,
             String status, Pageable pageable) {
 
         Page<ArticleOverview> articles = articleRepository
-                .findArticlesWithAuthor(id, title, startDate, endDate, status, pageable);
+                .findArticlesWithAuthor(search, startDate, endDate, status, pageable);
 
         return articles.stream().map(article -> articleMapper.toArticleOverviewResponse(article));
     }
@@ -187,13 +187,12 @@ public class ArticleService {
 
 
     public long getNumberOfArtilce(
-            String id,
-            String title,
+            String search,
             String articleStatus,
             LocalDateTime startDate,
             LocalDateTime endDate
     ) {
-        return articleRepository.countArticlesWithFilters(id, title, startDate, endDate, articleStatus);
+        return articleRepository.countArticlesWithFilters( search, startDate, endDate, articleStatus);
     }
 
     public boolean isOwned(String username, String articleId) {

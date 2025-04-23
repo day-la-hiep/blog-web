@@ -1,4 +1,4 @@
-package com.noface.newswebapi.mapper;
+package com.noface.newswebapi.dto.mapper;
 
 import com.noface.newswebapi.dto.request.UserCreateRequest;
 import com.noface.newswebapi.dto.request.UserUpdateRequest;

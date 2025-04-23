@@ -23,21 +23,23 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
         a.summary,
         a.dateCreated,
         a.lastUpdated,
-        a.author.fullname,
+        CONCAT(a.author.firstName, ' ', a.author.lastName),
         a.status,
         a.thumbnailUrl
     )
-    FROM Article a 
-    LEFT JOIN a.author
-    WHERE (:#{#id} IS NULL OR a.id LIKE %:#{#id}%) 
-    AND (:#{#title} IS NULL OR a.title LIKE %:#{#title}%)
+    FROM Article a
+    LEFT JOIN a.author author
+    WHERE 
+        (:#{#search} IS NULL OR 
+        a.id LIKE %:#{#search}% OR 
+        a.title LIKE %:#{#search}%)
     AND (:#{#startDate} IS NULL OR a.dateCreated >= :#{#startDate})
     AND (:#{#endDate} IS NULL OR a.dateCreated <= :#{#endDate})
     AND (:#{#status} IS NULL OR a.status = :#{#status})
+    ORDER BY a.dateCreated DESC
 """)
     Page<ArticleOverview> findArticlesWithAuthor(
-            @Param("id") String id,
-            @Param("title") String title,
+            @Param("search") String search,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("status") String status,
@@ -47,15 +49,13 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
     SELECT COUNT(a)
     FROM Article a
     LEFT JOIN a.author
-    WHERE (:#{#id} IS NULL OR a.id LIKE %:#{#id}%)
-    AND (:#{#title} IS NULL OR a.title LIKE %:#{#title}%)
+    WHERE ((:#{#search} IS NULL OR a.id LIKE %:#{#id}%) OR (:#{#search} IS NULL OR a.title LIKE %:#{#title}%))
     AND (:#{#startDate} IS NULL OR a.dateCreated >= :#{#startDate})
     AND (:#{#endDate} IS NULL OR a.dateCreated <= :#{#endDate})
     AND (:#{#status} IS NULL OR a.status = :#{#status})
 """)
     long countArticlesWithFilters(
-            @Param("id") String id,
-            @Param("title") String title,
+            @Param("search") String search,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("status") String status);
@@ -69,7 +69,7 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
         a.summary,
         a.dateCreated,
         a.lastUpdated,
-        a.author.fullname,
+        CONCAT(a.author.firstName, ' ', a.author.lastName),
         a.status,
         a.thumbnailUrl
     )

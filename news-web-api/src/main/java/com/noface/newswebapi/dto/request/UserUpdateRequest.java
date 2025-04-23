@@ -9,16 +9,10 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserUpdateRequest {
-    Long id;
-
-
-    String password;
 
     String fullname;
 
     String mail;
-
-    String position;
 
     String description;
 }

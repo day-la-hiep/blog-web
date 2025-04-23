@@ -1,6 +1,8 @@
 package com.noface.newswebapi.repository;
 
 import com.noface.newswebapi.entity.Comment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +15,8 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
 
     void removeCommentById(String id);
 
-    List<Comment> getAllByParentArticle_Id(String articleId);
 
+    List<Comment> getCommentsByParentArticle_Id(String parentArticleId, Pageable pageable);
+
+    Page<Comment> getCommentsByAuthor_Username(String authorUsername, Pageable pageable);
 }

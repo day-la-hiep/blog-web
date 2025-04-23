@@ -1,4 +1,4 @@
-package com.noface.newswebapi.mapper;
+package com.noface.newswebapi.dto.mapper;
 
 import com.noface.newswebapi.dto.request.CategoryRequest;
 import com.noface.newswebapi.dto.response.CategoryResponse;

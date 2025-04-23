@@ -8,7 +8,7 @@ import com.noface.newswebapi.dto.response.ApiResponse;
 import com.noface.newswebapi.dto.response.article.ArticleOverviewResponse;
 import com.noface.newswebapi.dto.response.article.ArticleResponse;
 import com.noface.newswebapi.dto.response.article.UploadArticleImageResponse;
-import com.noface.newswebapi.mapper.ArticleMapper;
+import com.noface.newswebapi.dto.mapper.ArticleMapper;
 import com.noface.newswebapi.service.ArticleService;
 import com.noface.newswebapi.service.FileUploadService;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +42,6 @@ public class ArticleController {
     @PostMapping("/articles")
     public ApiResponse<ArticleResponse> createArticle(
             @RequestBody ArticleCreateRequest articleRequest
-
     ) throws IOException {
 
         ArticleResponse response = articleService.createNewArticle(
@@ -76,10 +75,9 @@ public class ArticleController {
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "100") Integer limit,
             @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "") String title,
-            @RequestParam(defaultValue = "") String id,
+            @RequestParam(defaultValue = "") String search,
 
-            @RequestParam(defaultValue = "PUBLISHED") String status,
+            @RequestParam(defaultValue = "") String status,
             @RequestParam(required = false) LocalDateTime startDate,
             @RequestParam(required = false) LocalDateTime endDate
     ) {
@@ -88,7 +86,6 @@ public class ArticleController {
                 .withMinute(0).withSecond(0).withNano(0) : startDate;
         endDate = endDate != null ? endDate.withHour(23).withMinute(59).withSecond(59)
                 .withNano(999_999_999) : endDate;
-
         List<SimpleGrantedAuthority> authorities = (List<SimpleGrantedAuthority>) SecurityContextHolder
                 .getContext().getAuthentication().getAuthorities();
         if(authorities.contains(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))) {
@@ -100,7 +97,7 @@ public class ArticleController {
                 ));
 
         Stream<ArticleOverviewResponse> articlesResponse = articleService.getArticlesWithFilter(
-                id, title,  startDate, endDate, status, pageable);
+                search, startDate, endDate, status, pageable);
         ApiResponse<List<ArticleOverviewResponse>> response = ApiResponse.<List<ArticleOverviewResponse>>builder()
                 .result(articlesResponse.toList())
                 .build();
@@ -120,6 +117,29 @@ public class ArticleController {
                 .build();
     }
 
+    @PostMapping("/articles/{articleId}/submit")
+    @PreAuthorize("@articleService.isOwned(authentication.name, #articleId)")
+    public ApiResponse<ArticleResponse> submitArticle(
+            @PathVariable("articleId") String articleId
+    ) {
+        return ApiResponse.<ArticleResponse>builder()
+                .result(articleService.updateArticleStatus(
+                        articleId, ArticleStatus.PENDING.getName()))
+                .build();
+    }
+
+    @PostMapping("/articles/{articleId}/published")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR')")
+    public ApiResponse<ArticleResponse> publishArticle(
+            @PathVariable String articleId
+    ){
+        return ApiResponse.<ArticleResponse>builder()
+                .result(articleService.updateArticleStatus(articleId
+                        , ArticleStatus.PUBLISHED.getName()))
+                .build();
+    }
+
+
 
     @DeleteMapping("/articles/{id}")
     @PreAuthorize("@articleService.isOwned(authentication.name, #id)")
@@ -129,11 +149,9 @@ public class ArticleController {
                 .build();
     }
 
-    @GetMapping("/articles/count")
+    @GetMapping("/articles/quantity")
     public ApiResponse<Long> getNumberOfArticle(
-            @RequestParam(defaultValue = "") String title,
-            @RequestParam(defaultValue = "") String id,
-
+            @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "PUBLISHED") String status,
             @RequestParam(required = false) LocalDateTime startDate,
             @RequestParam(required = false) LocalDateTime endDate
@@ -143,7 +161,7 @@ public class ArticleController {
         if(authorities.contains(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))) {
             status = ArticleStatus.PUBLISHED.getName().toUpperCase();
         }
-        return ApiResponse.<Long>builder().result(articleService.getNumberOfArtilce(title, id,
+        return ApiResponse.<Long>builder().result(articleService.getNumberOfArtilce(search,
                 status, startDate, endDate)).build();
     }
 
@@ -162,16 +180,7 @@ public class ArticleController {
                         .build())
                 .build();
     }
-    @PutMapping("/{articleId}/status")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR')")
-    public ApiResponse<ArticleResponse> updateArticleStatus(
-            @PathVariable("articleId") String articleId,
-            @RequestBody String status
-    ) {
-        return ApiResponse.<ArticleResponse>builder()
-                .result(articleService.updateArticleStatus(articleId, status))
-                .build();
-    }
+
 
     @GetMapping("/users/{userId}/articles")
     @PreAuthorize("@articleService.isOwned(authentication.name, #userId)")

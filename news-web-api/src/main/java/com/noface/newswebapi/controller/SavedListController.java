@@ -1,5 +1,6 @@
 package com.noface.newswebapi.controller;
 
+import com.noface.newswebapi.dto.request.AddArticleToSavedListRequest;
 import com.noface.newswebapi.dto.request.SavedListRequest;
 import com.noface.newswebapi.dto.response.ApiResponse;
 import com.noface.newswebapi.dto.response.article.ArticleResponse;
@@ -12,18 +13,18 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/saved-lists")
+@RequestMapping("/api")
 public class SavedListController {
     @Autowired
     private SavedListService savedListService;
-    @GetMapping()
+    @GetMapping("/users/me/saved-lists")
     public ApiResponse<List<SavedListResponse>> getAllSavedLists() {
         List<SavedListResponse> response = savedListService.getSavedLists();
         return ApiResponse.<List<SavedListResponse>>builder()
                 .result(response)
                 .build();
     }
-    @GetMapping("/{listId}/articles")
+    @GetMapping("/saved-lists/{listId}/articles")
     @PreAuthorize("@savedListService.isOwnSavedList(authentication.name, #listId)")
     public ApiResponse<List<ArticleResponse>> getArticlesInSavedList(@PathVariable String listId) {
         List<ArticleResponse> response = savedListService.getArticlesInSavedList(listId);
@@ -32,7 +33,7 @@ public class SavedListController {
                 .build();
     }
 
-    @DeleteMapping("{listId}/articles/{articleId}")
+    @DeleteMapping("/saved-lists/{listId}/articles/{articleId}")
     @PreAuthorize("@savedListService.isOwnSavedList(authentication.name, #listId)")
     public ApiResponse removeArticleFromSavedList(@PathVariable String listId, @PathVariable String articleId) {
         savedListService.removeArticleFromSavedList(listId, articleId);
@@ -41,15 +42,16 @@ public class SavedListController {
                 .build();
     }
 
-    @PostMapping()
-    public ApiResponse<SavedListResponse> createSavedList(@RequestBody SavedListRequest savedListRequest) {
+    @PostMapping("/users/me/saved-lists")
+    public ApiResponse<SavedListResponse> createSavedList(
+            @RequestBody SavedListRequest savedListRequest) {
         SavedListResponse response = savedListService.createSavedList(savedListRequest);
         return ApiResponse.<SavedListResponse>builder()
                 .result(response)
                 .build();
     }
 
-    @DeleteMapping("/{listId}")
+    @DeleteMapping("/saved-lists/{listId}")
     @PreAuthorize("@savedListService.isOwnSavedList(authentication.name, #listId)")
     public ApiResponse<SavedListResponse> deleteSavedList(@PathVariable String listId) {
         SavedListResponse response = savedListService.removeSavedList(listId);
@@ -58,7 +60,7 @@ public class SavedListController {
                 .build();
     }
 
-    @PutMapping("/{listId}")
+    @PutMapping("/saved-lists/{listId}")
     @PreAuthorize("@savedListService.isOwnSavedList(authentication.name, #listId)")
     public ApiResponse<SavedListResponse> updateSavedListInfo(@PathVariable String listId, @RequestBody SavedListRequest savedListRequest) {
         SavedListResponse response = savedListService.updateSavedListInfo(listId, savedListRequest);
@@ -67,10 +69,10 @@ public class SavedListController {
                 .build();
     }
 
-    @PostMapping("/{listId}/articles/{articleId}")
+    @PostMapping("/saved-lists/{listId}/articles/")
     @PreAuthorize("@savedListService.isOwnSavedList(authentication.name, #listId)")
-    public ApiResponse<ArticleResponse> addArticleToSavedList(@PathVariable String listId, @PathVariable String articleId) {
-        ArticleResponse response = savedListService.addArticleToSavedList(listId, articleId);
+    public ApiResponse<ArticleResponse> addArticleToSavedList(@PathVariable String listId, @RequestBody AddArticleToSavedListRequest request) {
+        ArticleResponse response = savedListService.addArticleToSavedList(listId, request.getArticleId());
         return ApiResponse.<ArticleResponse>builder()
                 .result(response)
                 .build();

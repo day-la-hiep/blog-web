@@ -18,7 +18,6 @@ public class ArticleUpdateRequest {
     private String title;
     private String summary;
     private String content;
-    private String status;
     private Set<CategoryRequest> categories;
     private String thumbNailUrl;
 }

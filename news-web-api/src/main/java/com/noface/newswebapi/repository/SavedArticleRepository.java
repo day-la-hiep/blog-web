@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SavedArticleRepository  extends JpaRepository<SavedArticle, String> {
+    boolean existsByArticle_IdAndSavedList_Id(String articleId, String savedListId);
 }

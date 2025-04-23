@@ -6,7 +6,7 @@ import com.noface.newswebapi.dto.response.article.ArticleResponse;
 import com.noface.newswebapi.entity.Article;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
-import com.noface.newswebapi.mapper.ArticleMapper;
+import com.noface.newswebapi.dto.mapper.ArticleMapper;
 import com.noface.newswebapi.repository.ArticleRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

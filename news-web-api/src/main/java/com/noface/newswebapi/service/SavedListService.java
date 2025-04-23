@@ -8,8 +8,8 @@ import com.noface.newswebapi.entity.SavedArticle;
 import com.noface.newswebapi.entity.SavedList;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
-import com.noface.newswebapi.mapper.ArticleMapper;
-import com.noface.newswebapi.mapper.SavedListMapper;
+import com.noface.newswebapi.dto.mapper.ArticleMapper;
+import com.noface.newswebapi.dto.mapper.SavedListMapper;
 import com.noface.newswebapi.repository.ArticleRepository;
 import com.noface.newswebapi.repository.SavedArticleRepository;
 import com.noface.newswebapi.repository.SavedListRepository;
@@ -45,6 +45,11 @@ public class SavedListService {
     }
 
     public ArticleResponse addArticleToSavedList(String listId, String articleId) {
+
+        if(savedArticleRepository.existsByArticle_IdAndSavedList_Id(articleId, listId)) {
+            throw new AppException(ErrorCode.ARTICLE_ALREADY_IN_SAVED_LIST);
+        }
+
         SavedList savedList = savedListRepository.findById(listId)
                 .orElseThrow(() -> new AppException(ErrorCode.SAVED_LIST_NOT_EXISTED));
         Article article = articleRepository.findById(articleId)
@@ -54,7 +59,7 @@ public class SavedListService {
                 .savedList(savedList)
                 .createdAt(LocalDateTime.now())
                 .build();
-        savedArticleRepository.save(savedArticle);
+        savedArticle = savedArticleRepository.save(savedArticle);
 
         savedListRepository.save(savedList);
         return articleMapper.toArticleResponse(article);
@@ -110,8 +115,6 @@ public class SavedListService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
         savedList.setSavedArticles(new HashSet<>());
         savedList = savedListRepository.save(savedList);
-
-        log.info("Saved list created: {} {}", savedList.getId(), savedList.getName());
         return savedListMapper.toSavedListResponse(savedList);
     }
 

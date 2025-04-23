@@ -4,6 +4,7 @@ import com.noface.newswebapi.entity.Permission;
 import com.noface.newswebapi.entity.Role;
 import com.noface.newswebapi.entity.User;
 import com.noface.newswebapi.repository.PermissionRepository;
+import com.noface.newswebapi.repository.UserRepository;
 import com.noface.newswebapi.service.PermissionService;
 import com.noface.newswebapi.service.RoleService;
 import com.noface.newswebapi.service.UserService;
@@ -28,6 +29,8 @@ public class ApplicationInit {
     PermissionService permissionService;
     @Autowired
     PasswordEncoder passwordEncoder;
+    @Autowired
+    UserRepository userRepository;
 
     @Bean
     ApplicationRunner init(PermissionRepository permissionRepository) {
@@ -72,10 +75,9 @@ public class ApplicationInit {
 
             roleService.saveRole(adminRole);
             if (userService.userExisted("admin") == false) {
-                User user = User.builder().username("admin").password("admin").fullname("admin").build();
-                userService.createUser(user);
+                User user = User.builder().username("admin").password("admin").build();
                 user.getRoles().add(adminRole);
-                userService.updateUserRole(user);
+                userRepository.save(user);
             }
 
         };

@@ -1,6 +1,5 @@
 package com.noface.newswebapi.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -9,19 +8,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserRespone {
-
-    String id;
+public class UserFollowResponse {
     String username;
-
-
-    String firstName;
-
-    String lastName;
-
-    String mail;
-
-
-    String description;
-
+    String fullname;
 }
