@@ -2,7 +2,7 @@ import {
     Table, TableBody, TableCaption, TableCell,
     TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
-import { TablePagination } from "../../pages/cms/dashboard/TablePagination";
+import { TablePagination } from "../../pages/admin/dashboard/TablePagination";
 
 type Column = {
     header: string;

@@ -1,20 +1,24 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import DashBoard from './pages/cms/dashboard/Page'
-import AdminPage from '@/pages/cms/AdminPage'
-import MainContent from './pages/blog/home-page/MainContent'
-import CategoryManagementPage from './pages/cms/categoryManagement/Page'
-import ViewDetailPostPage from '@/pages/cms/postManagement/viewPostDetail/Page'
-import ViewPostPage from '@/pages/cms/postManagement/viewpost/Page'
+import DashBoard from './pages/admin/dashboard/Page'
+import AdminPage from '@/pages/admin/page'
+import MainContent from './pages/blog/home-page/Page'
+import CategoryManagementPage from './pages/admin/categories/Page'
 import { Toaster } from 'sonner'
-import UserManagementPage from './pages/cms/userManagement/Page'
-import RoleManagementPage from '@/pages/cms/roleManagement/Page'
-import HomepageLayout from './pages/blog/Layout'
-import Page from './pages/blog/post-detail/Page'
-import AdminLogin from './pages/cms/login/Login'
+import UserManagementPage from './pages/admin/users/page'
+import RoleManagementPage from '@/pages/admin/users/page'
+import HomepageLayout from './pages/blog/Page'
+import AdminLogin from './pages/admin/login/Login'
 import { AuthProvider } from './hooks/AuthProvider'
 import HomePageRoutes from './routes/HomePageRoutes'
-import UserSettingPage from './pages/blog/settingsPage/Page'
-import { adminPath, adminDashboardPath, adminUsersPath, adminPostsPath, adminCategoriesPath, adminRoleManagePath, adminLoginPath, blogPath, blogPostPath, userSettingPath } from './RouteDefinition'
+import MyProfilePage from './pages/blog/my-profile/Page'
+import MyPostsPage from './pages/blog/my-posts/Page'
+import LibaryPage from './pages/blog/library/Page'
+import PostsPage from './pages/admin/posts/Page'
+import CommentsPage from './pages/admin/comments/page'
+import PostDetailPage from './pages/blog/home-page/post-detail/Page'
+import UserProfilePage from './pages/blog/home-page/user-profile/Page'
+import ReportsPage from './pages/admin/report/Page'
+import CreatePostPage from './pages/blog/create-posts/Page'
 function App() {
 
   return (
@@ -26,23 +30,26 @@ function App() {
 
         <AuthProvider >
           <Routes>
-            <Route path={adminPath} element={<AdminPage />} >
-              <Route path={adminDashboardPath} element={<DashBoard />} />
-              <Route path={adminUsersPath} element={<UserManagementPage />} />
-              <Route path={adminPostsPath} element={<ViewPostPage />} />
-              <Route path={adminCategoriesPath} element={<CategoryManagementPage />} />
-              <Route path={adminRoleManagePath} element={<RoleManagementPage />} />
-              <Route path={`${adminPostsPath}/:id`} element={<ViewDetailPostPage />} />
+            <Route path='dashboard' element={<AdminPage />} >
+              <Route path='users' element={<UserManagementPage />} />
+              <Route path='posts' element={<PostsPage />} />
+              <Route path='comments' element={<CommentsPage />} />
+              <Route path='categories' element={<CategoryManagementPage />} />
+              <Route path='reports' element={<ReportsPage />} />
             </Route>
-            <Route path={adminLoginPath} element={<AdminLogin />}></Route>
+            <Route path={'/admin/login'} element={<AdminLogin />}></Route>
 
 
             <Route element={<HomePageRoutes>
               <HomepageLayout />
             </HomePageRoutes>}>
-              <Route path={blogPath} element={<MainContent />} ></Route>
-              <Route path={blogPostPath} element={<Page />} />
-              <Route path={userSettingPath} element={<UserSettingPage />} />
+              <Route path='/' element={<MainContent />} ></Route>
+              <Route path='/posts/:id' element={<PostDetailPage />} />
+              <Route path='/profile' element={<MyProfilePage />} />
+              <Route path='/library' element={<LibaryPage />} />
+              <Route path='/my-posts' element={<MyPostsPage />} />
+              <Route path='/users/:username' element={<UserProfilePage />} />'
+              <Route path='/create-post' element={<CreatePostPage />} />
             </Route>
 
 

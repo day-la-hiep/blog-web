@@ -77,7 +77,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUserInfo(null)
         setToken("")
     }, [])
-
+    useEffect(() => {
+        auth("admin", "admin")
+    }, [])
 
 
 
