@@ -1,7 +1,8 @@
 package com.noface.newswebapi.service;
 
-import com.noface.newswebapi.dto.request.CommentRequest;
-import com.noface.newswebapi.dto.response.CommentResponse;
+import com.noface.newswebapi.dto.PagedResult;
+import com.noface.newswebapi.dto.comment.CommentRequest;
+import com.noface.newswebapi.dto.comment.CommentResponse;
 import com.noface.newswebapi.entity.Article;
 import com.noface.newswebapi.entity.Comment;
 import com.noface.newswebapi.entity.User;
@@ -55,9 +56,10 @@ public class CommentService {
         commentRepository.save(comment);
         return commentMapper.toCommentResponse(comment);
     }
-    public List<CommentResponse> getCommentsByArticleId(String articleId, Pageable pageable) {
-        List<Comment> comments = commentRepository.getCommentsByParentArticle_Id(articleId, pageable);
-        return comments.stream().map(commentMapper::toCommentResponse).collect(Collectors.toList());
+    public PagedResult<CommentResponse> getCommentsByArticleId(String articleId, Pageable pageable) {
+        Page<CommentResponse> comments = commentRepository.getCommentsByParentArticle_Id(articleId, pageable)
+                .map(commentMapper::toCommentResponse);
+        return new PagedResult<CommentResponse>(comments);
     }
 
 
@@ -67,9 +69,10 @@ public class CommentService {
         return CommentResponse.builder().id(id).build();
     }
 
-    public List<CommentResponse> getAllComments() {
-        List<Comment> comments = commentRepository.findAll();
-        return comments.stream().map(commentMapper::toCommentResponse).collect(Collectors.toList());
+    public PagedResult<CommentResponse> getAllComments(String search, Pageable pageable) {
+        Page<CommentResponse> comments = commentRepository.findCommentsWithFilter(search, pageable)
+                .map(commentMapper::toCommentResponse);
+        return new PagedResult<>(comments);
     }
     public boolean isOwned(String commentId) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -78,10 +81,17 @@ public class CommentService {
         return comment.getAuthor().getUsername().equals(username);
     }
 
-    public List<CommentResponse> getCommentsByUsername(String username, Pageable pageable) {
+    public PagedResult<CommentResponse> getCommentsByUsername(String username, Pageable pageable) {
 
-        Page<Comment> comments = commentRepository
-                .getCommentsByAuthor_Username(username, pageable);
-        return comments.stream().map(commentMapper::toCommentResponse).collect(Collectors.toList());
+        Page<CommentResponse> comments = commentRepository
+                .getCommentsByAuthor_Username(username, pageable)
+                .map(commentMapper::toCommentResponse);
+        return new PagedResult<>(comments);
+    }
+
+    public CommentResponse getCommentById(String id) {
+        return commentRepository.findCommentsById(id)
+                .map(commentMapper::toCommentResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_EXISTED));
     }
 }

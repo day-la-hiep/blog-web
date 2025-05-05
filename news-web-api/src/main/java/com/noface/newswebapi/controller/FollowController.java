@@ -1,8 +1,8 @@
 package com.noface.newswebapi.controller;
 
-import com.noface.newswebapi.dto.response.ApiResponse;
-import com.noface.newswebapi.dto.response.FollowRespone;
-import com.noface.newswebapi.dto.response.UserFollowResponse;
+import com.noface.newswebapi.dto.ApiResponse;
+import com.noface.newswebapi.dto.follow.FollowRespone;
+import com.noface.newswebapi.dto.follow.UserFollowResponse;
 import com.noface.newswebapi.service.FollowService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;

@@ -19,8 +19,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     void removeUserById(String id);
     List<User> findAll();
     Page<User> findAll(Pageable pageable);
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.username = ?1")
-    Optional<User> findUserByUsernameWithRoles(String username);
+
 
 
     @Query("""
@@ -33,5 +32,7 @@ public interface UserRepository extends JpaRepository<User, String> {
         LOWER(u.mail) LIKE LOWER(CONCAT('%', :search, '%')))
 """)
     Page<User> findAllWithFilters(@Param("search") String search, Pageable pageable);
+
+    void removeUserByUsername(String username);
 
 }

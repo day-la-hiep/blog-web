@@ -1,6 +1,7 @@
 package com.noface.newswebapi.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -9,6 +10,7 @@ import org.hibernate.annotations.GenericGenerator;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -25,7 +27,7 @@ public class Comment {
     @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
     String id;
     @Column()
-    @NotEmpty()
+    @NotBlank
     String content;
 
     @Column()
@@ -44,7 +46,10 @@ public class Comment {
 
     @ManyToOne()
     @JoinColumn(name = "userId")
+    @NotNull
     User author;
 
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    Set<Report> reports = new HashSet<>();
 
 }

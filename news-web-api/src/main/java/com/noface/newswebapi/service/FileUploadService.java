@@ -2,7 +2,7 @@ package com.noface.newswebapi.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import com.noface.newswebapi.dto.response.article.ArticleResponse;
+import com.noface.newswebapi.dto.article.ArticleResponse;
 import com.noface.newswebapi.entity.Article;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
@@ -62,9 +62,9 @@ public class FileUploadService {
         );
         return uploadResult;
     }
-    public String uploadArticleImages(MultipartFile file, Long articleId) throws IOException {
+    public String uploadArticleImages(MultipartFile file) throws IOException {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        String folder = "/users/" + username + "/articles/" + articleId;
+        String folder = "/users/" + username;
         Map uploadResult = cloudinary.uploader().upload(
                 file.getBytes(),
                 ObjectUtils.asMap(

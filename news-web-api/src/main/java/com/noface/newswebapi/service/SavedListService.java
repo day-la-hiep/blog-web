@@ -1,8 +1,11 @@
 package com.noface.newswebapi.service;
 
-import com.noface.newswebapi.dto.request.SavedListRequest;
-import com.noface.newswebapi.dto.response.article.ArticleResponse;
-import com.noface.newswebapi.dto.response.SavedListResponse;
+import com.noface.newswebapi.dto.PagedResult;
+import com.noface.newswebapi.dto.article.AddArticleToSavedListRequest;
+import com.noface.newswebapi.dto.article.ArticleOverviewResponse;
+import com.noface.newswebapi.dto.mapper.SavedArticleMapper;
+import com.noface.newswebapi.dto.savedList.SavedListRequest;
+import com.noface.newswebapi.dto.savedList.SavedListResponse;
 import com.noface.newswebapi.entity.Article;
 import com.noface.newswebapi.entity.SavedArticle;
 import com.noface.newswebapi.entity.SavedList;
@@ -16,13 +19,15 @@ import com.noface.newswebapi.repository.SavedListRepository;
 import com.noface.newswebapi.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -39,48 +44,55 @@ public class SavedListService {
     private UserRepository userRepository;
     @Autowired
     private SavedArticleRepository savedArticleRepository;
+    @Autowired
+    private SavedArticleMapper savedArticleMapper;
+
     public SavedListResponse getSavedList(String id) throws AppException {
         return savedListMapper.toSavedListResponse(savedListRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SAVED_LIST_NOT_EXISTED)));
     }
 
-    public ArticleResponse addArticleToSavedList(String listId, String articleId) {
+    public SavedListResponse addArticleToSavedList(String listId, AddArticleToSavedListRequest request) {
+        Set<String> articleIds = request.getArticleIds();
+        SavedList savedList = savedListRepository.findById(listId)
+                .orElseThrow(() -> new AppException(ErrorCode.SAVED_LIST_NOT_EXISTED));
+        for(String articleId : articleIds){
+            if(savedArticleRepository.existsByArticle_IdAndSavedList_Id(articleId, listId)) {
+                throw new AppException(ErrorCode.ARTICLE_ALREADY_IN_SAVED_LIST);
+            }
 
-        if(savedArticleRepository.existsByArticle_IdAndSavedList_Id(articleId, listId)) {
-            throw new AppException(ErrorCode.ARTICLE_ALREADY_IN_SAVED_LIST);
+            Article article = articleRepository.findById(articleId)
+                    .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
+            SavedArticle savedArticle = SavedArticle.builder()
+                    .article(article)
+                    .savedList(savedList)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            savedArticle = savedArticleRepository.save(savedArticle);
+
         }
 
-        SavedList savedList = savedListRepository.findById(listId)
-                .orElseThrow(() -> new AppException(ErrorCode.SAVED_LIST_NOT_EXISTED));
-        Article article = articleRepository.findById(articleId)
-                .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
-        SavedArticle savedArticle = SavedArticle.builder()
-                .article(article)
-                .savedList(savedList)
-                .createdAt(LocalDateTime.now())
-                .build();
-        savedArticle = savedArticleRepository.save(savedArticle);
 
         savedListRepository.save(savedList);
-        return articleMapper.toArticleResponse(article);
+        return savedListMapper.toSavedListResponse(savedList);
     }
 
-    public List<ArticleResponse> getArticlesInSavedList(String listId) {
+    public PagedResult<ArticleOverviewResponse> getArticlesInSavedList(String listId, String search, Pageable pageable)  {
         SavedList savedList = savedListRepository.findById(listId)
                 .orElseThrow(() -> new AppException(ErrorCode.SAVED_LIST_NOT_EXISTED));
-        List<Article> articles = savedList.getSavedArticles().stream()
-                .map(savedArticle -> savedArticle.getArticle())
-                .collect(Collectors.toList());
-        return articles.stream()
-                .map(articleMapper::toArticleResponse)
-                .collect(Collectors.toList());
+        Page<ArticleOverviewResponse> savedArticles = savedArticleRepository.findSavedArticlesWithFilter(listId, search, pageable)
+                .map(savedArticle -> {
+                    Article article = savedArticle.getArticle();
+                    return articleMapper.toArticleOverviewResponse(article);
+                });
+        return new PagedResult<ArticleOverviewResponse>(savedArticles);
     }
 
-    public List<SavedListResponse> getSavedLists() {
+    public PagedResult<SavedListResponse> getSavedLists(String search, Pageable pageable) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return savedListRepository.findAllByAuthor_Username(username).stream()
-                .map(savedListMapper::toSavedListResponse)
-                .collect(Collectors.toList());
+        Page<SavedListResponse> savedLists = savedListRepository.findSavedListsWithFilter(username, search, pageable)
+                .map(savedListMapper::toSavedListResponse);
+        return new PagedResult<>(savedLists);
     }
 
     public SavedListResponse removeSavedList(String listId){
@@ -89,14 +101,15 @@ public class SavedListService {
         savedListRepository.delete(savedList);
         return savedListMapper.toSavedListResponse(savedList);
     }
-
-    public SavedListResponse removeArticleFromSavedList(String listId, String articleId){
+    @Transactional
+    public SavedListResponse deleteArticleInSavedList(String listId, String articleId){
         SavedList savedList = savedListRepository.findById(listId)
                 .orElseThrow(() -> new AppException(ErrorCode.SAVED_LIST_NOT_EXISTED));
-        Article article = articleRepository.findById(articleId)
-                .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
-        savedList.getSavedArticles().remove(article);
-        savedListRepository.save(savedList);
+        if(!savedArticleRepository.existsByArticle_IdAndSavedList_Id(articleId, listId)){
+            throw new AppException(ErrorCode.ARTICLE_NOT_IN_SAVED_LIST);
+        }
+        savedArticleRepository.removeSavedArticleByArticle_IdAndSavedList_Id(articleId, listId);
+        savedList.getSavedArticles().removeIf(savedArticle -> savedArticle.getArticle().getId().equals(articleId));
         return savedListMapper.toSavedListResponse(savedList);
     }
     public SavedListResponse updateSavedListInfo(String listId, SavedListRequest savedListRequest) {
@@ -110,10 +123,10 @@ public class SavedListService {
     public SavedListResponse createSavedList(SavedListRequest savedListRequest) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         SavedList savedList = savedListMapper.asSavedList(savedListRequest);
-        savedList = savedListRepository.save(savedList);
         savedList.setAuthor(userRepository.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
         savedList.setSavedArticles(new HashSet<>());
+
         savedList = savedListRepository.save(savedList);
         return savedListMapper.toSavedListResponse(savedList);
     }

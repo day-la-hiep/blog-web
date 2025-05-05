@@ -3,32 +3,25 @@ package com.noface.newswebapi.service;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
-import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.noface.newswebapi.dto.request.AuthenticationRequest;
-import com.noface.newswebapi.dto.request.IntrospectRequest;
-import com.noface.newswebapi.dto.response.AuthenticationResponse;
-import com.noface.newswebapi.dto.response.IntrospectResponse;
+import com.noface.newswebapi.dto.auth.IntrospectRequest;
+import com.noface.newswebapi.dto.auth.AuthenticationResponse;
+import com.noface.newswebapi.dto.auth.IntrospectResponse;
 import com.noface.newswebapi.entity.Permission;
 import com.noface.newswebapi.entity.Role;
 import com.noface.newswebapi.entity.User;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
 import com.noface.newswebapi.repository.UserRepository;
-import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.mapstruct.ap.shaded.freemarker.core.ReturnInstruction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.StringJoiner;
@@ -104,15 +97,9 @@ public class AuthenticationService {
     }
 
     public String getAuthorityInfo(String username){
-        StringJoiner joiner = new StringJoiner(" ");
-        userRepository.findByUsername(username).ifPresent(user -> {
-            for(Role role : user.getRoles()){
-                joiner.add("ROLE_" + role.getName().toUpperCase() + "");
-                for(Permission permission : role.getPermissions()){
-                    joiner.add(permission.getName());
-                }
-            }
-        });
-        return joiner.toString();
+        User user = userRepository.findByUsername(username).orElseThrow(
+                () -> new AppException(ErrorCode.USER_NOT_EXISTED)
+        );
+        return "ROLE_" + user.getUserRole();
     }
 }

@@ -1,6 +1,8 @@
 package com.noface.newswebapi.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.GenericGenerator;
@@ -21,10 +23,13 @@ public class SavedList {
     @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
     String id;
 
+    @Column(nullable = false, unique = true)
+    @NotBlank
     String name;
 
     @ManyToOne
     @JoinColumn(name = "userId")
+    @NotNull
     User author;
 
 

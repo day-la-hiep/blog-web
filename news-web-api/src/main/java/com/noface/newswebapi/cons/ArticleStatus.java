@@ -2,8 +2,8 @@ package com.noface.newswebapi.cons;
 
 public enum ArticleStatus {
     DRAFT("DRAFT"),
-    PUBLISHED("PUBLISHED"),
     PENDING("PENDING"),
+    DONE("DONE"),
 
     ;
     private String name;

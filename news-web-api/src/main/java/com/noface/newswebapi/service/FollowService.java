@@ -1,8 +1,8 @@
 package com.noface.newswebapi.service;
 
 import com.noface.newswebapi.dto.mapper.FollowMapper;
-import com.noface.newswebapi.dto.response.FollowRespone;
-import com.noface.newswebapi.dto.response.UserFollowResponse;
+import com.noface.newswebapi.dto.follow.FollowRespone;
+import com.noface.newswebapi.dto.follow.UserFollowResponse;
 import com.noface.newswebapi.entity.Follow;
 import com.noface.newswebapi.entity.User;
 import com.noface.newswebapi.exception.AppException;

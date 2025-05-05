@@ -1,7 +1,7 @@
 package com.noface.newswebapi.dto.mapper;
 
-import com.noface.newswebapi.dto.request.CommentRequest;
-import com.noface.newswebapi.dto.response.CommentResponse;
+import com.noface.newswebapi.dto.comment.CommentRequest;
+import com.noface.newswebapi.dto.comment.CommentResponse;
 import com.noface.newswebapi.entity.Comment;
 import org.mapstruct.*;
 

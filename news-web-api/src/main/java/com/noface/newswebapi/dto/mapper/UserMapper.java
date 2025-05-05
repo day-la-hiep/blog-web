@@ -1,9 +1,9 @@
 package com.noface.newswebapi.dto.mapper;
 
-import com.noface.newswebapi.dto.request.UserCreateRequest;
-import com.noface.newswebapi.dto.request.UserUpdateRequest;
-import com.noface.newswebapi.dto.response.UserCreateRespone;
-import com.noface.newswebapi.dto.response.UserRespone;
+import com.noface.newswebapi.dto.user.UserCreateRequest;
+import com.noface.newswebapi.dto.user.UserUpdateRequest;
+import com.noface.newswebapi.dto.user.UserCreateRespone;
+import com.noface.newswebapi.dto.user.UserRespone;
 import com.noface.newswebapi.entity.User;
 import org.mapstruct.*;
 
@@ -15,7 +15,11 @@ public interface UserMapper {
     public UserRespone toUserRespone(User user);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "roles", ignore = true)
     @Mapping(target = "createdArticles", ignore = true)
     public User updateuser(@MappingTarget User user, User updateUser);
+
+    @Named("toFullName")
+    default public String toFullName(User user){
+        return user.getFirstName() + " " + user.getLastName();
+    }
 }

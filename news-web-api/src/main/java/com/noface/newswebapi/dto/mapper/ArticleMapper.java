@@ -1,19 +1,28 @@
 package com.noface.newswebapi.dto.mapper;
 
-import com.noface.newswebapi.dto.ArticleOverview;
-import com.noface.newswebapi.dto.request.article.ArticleCreateRequest;
-import com.noface.newswebapi.dto.request.article.ArticleRequest;
-import com.noface.newswebapi.dto.request.article.ArticleUpdateRequest;
-import com.noface.newswebapi.dto.response.article.ArticleOverviewResponse;
-import com.noface.newswebapi.dto.response.article.ArticleResponse;
+import com.noface.newswebapi.dto.article.*;
 import com.noface.newswebapi.entity.Article;
+import com.noface.newswebapi.entity.ArticleCategory;
+import com.noface.newswebapi.entity.User;
 import org.mapstruct.*;
+import org.mapstruct.factory.Mappers;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Mapper(componentModel = "spring")
 
 public interface ArticleMapper {
-    @Mapping(target = "id", ignore = true)
-    public Article asArticle(ArticleRequest request);
+    @Autowired
+    UserMapper userMapper = Mappers.getMapper(UserMapper.class);
+
+
+    Article asArticle(ArticleCreateRequest request);
+
+    @Mapping(target = "author", source = "author", qualifiedByName = "toFullName")
+    @Mapping(target = "categoryIds", source = "articleCategories", qualifiedByName = "toCategoryIds")
+    public ArticleResponse toArticleResponse(Article article);
 
 
     public Article asArticle(ArticleUpdateRequest request);
@@ -26,13 +35,28 @@ public interface ArticleMapper {
     @Mapping(target = "articleCategories", ignore = true)
     public void updateArticle(@MappingTarget Article article, ArticleUpdateRequest articleUpdate);
 
-    @Mapping(target = "author", source = "author.lastName")
-    public ArticleResponse toArticleResponse(Article article);
 
-    @Mapping(target = "author", source = "author.lastName")
+
+    @Mapping(target = "author", source = "author", qualifiedByName = "toFullName")
     ArticleOverviewResponse toArticleOverviewResponse(Article article);
 
-    Article asArticle(ArticleCreateRequest request);
 
     ArticleOverviewResponse toArticleOverviewResponse(ArticleOverview articleOverview);
+
+    @Mapping(source = "author", target = "authorFullName", qualifiedByName = "toFullName")
+    PublicArticleOverViewResponse toPublicArticleOverViewResponse(Article article);
+    @Named("toFullName")
+    default String toFullName(User user){
+        return userMapper.toFullName(user);
+    }
+
+    @Named("toCategoryIds")
+    default Set<String> toCategoryIds(Set<ArticleCategory> articleCategories){
+        Set<String> categoryIds = new HashSet<>();
+        for(ArticleCategory articleCategory : articleCategories){
+            categoryIds.add(articleCategory.getCategory().getId());
+        }
+        return categoryIds;
+    }
+
 }

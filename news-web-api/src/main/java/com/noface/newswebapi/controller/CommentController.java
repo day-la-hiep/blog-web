@@ -1,8 +1,9 @@
 package com.noface.newswebapi.controller;
 
-import com.noface.newswebapi.dto.request.CommentRequest;
-import com.noface.newswebapi.dto.response.ApiResponse;
-import com.noface.newswebapi.dto.response.CommentResponse;
+import com.noface.newswebapi.dto.PagedResult;
+import com.noface.newswebapi.dto.comment.CommentRequest;
+import com.noface.newswebapi.dto.ApiResponse;
+import com.noface.newswebapi.dto.comment.CommentResponse;
 import com.noface.newswebapi.service.CommentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +32,18 @@ public class CommentController {
                 .result(response)
                 .build();
     }
+    @GetMapping("/comments/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR') or " +
+            "@commentService.isOwned(#id)")
+    public ApiResponse<CommentResponse> getCommentById(
+            @PathVariable("id") String id
+    ) {
+        CommentResponse response = commentService.getCommentById(id);
+        return ApiResponse.<CommentResponse>builder()
+                .result(response)
+                .build();
+    }
+
 
     @PutMapping("/comments/{id}")
     @PreAuthorize("@commentService.isOwned(#id)")
@@ -53,7 +66,7 @@ public class CommentController {
         return ApiResponse.<CommentResponse>builder().result(response).build();
     }
     @GetMapping("/articles/{articleId}/comments")
-    public ApiResponse<List<CommentResponse>> getAllCommentsByParentId(
+    public ApiResponse<PagedResult<CommentResponse>> getAllCommentsByParentId(
             @PathVariable("articleId") String articleId,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int page,
@@ -64,25 +77,47 @@ public class CommentController {
                 sortBy.replace("+", "")
                         .replace("-", "").trim()
         ));
-        List<CommentResponse> responses = commentService.getCommentsByArticleId(articleId, pageable);
-        return ApiResponse.<List<CommentResponse>>builder().result(responses).build();
+        PagedResult<CommentResponse> responses = commentService.getCommentsByArticleId(articleId, pageable);
+        return ApiResponse.<PagedResult<CommentResponse>>builder().result(responses).build();
     }
 
-    @GetMapping("/users/me/comments")
-    public ApiResponse<List<CommentResponse>> getCurrentUserComments(
+    @GetMapping("/comments")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR')")
+    public ApiResponse<PagedResult<CommentResponse>> getAllComments(
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "-createdAt") String sortBy,
+            @RequestParam(defaultValue = "") String search
+    ){
+        Pageable pageable = PageRequest.of(page, limit, Sort.by(
+                        Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
+                        sortBy.replace("+", "")
+                                .replace("-", "").trim()));
+
+        return ApiResponse.<PagedResult<CommentResponse>>builder()
+                .result(commentService.getAllComments(search, pageable))
+                .build();
+    }
+
+
+    @GetMapping("/users/{username}/comments")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR') or authentication.name == #username or #username == 'me'")
+    public ApiResponse<PagedResult<CommentResponse>> getCurrentUserComments(
             @RequestParam(defaultValue = "-createdAt") String sortBy,
             @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(defaultValue = "0") int page
-
+            @RequestParam(defaultValue = "0") int page,
+            @PathVariable String username
     ){
         Pageable pageable = PageRequest.of(page, limit, Sort.by(
                 Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
                 sortBy.replace("+", "")
                         .replace("-", "").trim()
         ));
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        List<CommentResponse> commentResponses =  commentService.getCommentsByUsername(username, pageable);
-        return ApiResponse.<List<CommentResponse>>builder()
+        if(username.equals("me")) {
+            username = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+        PagedResult<CommentResponse> commentResponses =  commentService.getCommentsByUsername(username, pageable);
+        return ApiResponse.<PagedResult<CommentResponse>>builder()
                 .result(commentResponses).build();
 
     }

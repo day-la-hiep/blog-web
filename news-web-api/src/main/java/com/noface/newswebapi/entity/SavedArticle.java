@@ -1,6 +1,7 @@
 package com.noface.newswebapi.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.GenericGenerator;
@@ -23,13 +24,13 @@ public class SavedArticle {
 
     @ManyToOne
     @JoinColumn(name = "savedListId")
+    @NotNull
     SavedList savedList;
 
     @ManyToOne
     @JoinColumn(name = "articleId")
+    @NotNull
     Article article;
-    @Column
-    String note;
 
     @Column
     @DateTimeFormat

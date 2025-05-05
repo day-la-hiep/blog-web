@@ -1,8 +1,8 @@
 package com.noface.newswebapi.service;
 
 import com.noface.newswebapi.dto.mapper.SavedArticleMapper;
-import com.noface.newswebapi.dto.request.SavedArticleRequest;
-import com.noface.newswebapi.dto.response.SavedArticleResponse;
+import com.noface.newswebapi.dto.savedList.SavedArticleRequest;
+import com.noface.newswebapi.dto.savedList.SavedArticleResponse;
 import com.noface.newswebapi.entity.SavedArticle;
 import com.noface.newswebapi.exception.AppException;
 import com.noface.newswebapi.exception.ErrorCode;
@@ -23,7 +23,6 @@ public class SavedArticleService {
         SavedArticle savedArticle = savedArticleRepository
                 .findById(savedArticleId).orElseThrow(
                         () -> new AppException(ErrorCode.SAVED_ARTICLE_NOT_EXISTED));
-        savedArticle.setNote(request.getNote());
-        return savedArticleMapper.toResponse(savedArticleRepository.save(savedArticle));
+        return savedArticleMapper.toSavedArticleReponse(savedArticleRepository.save(savedArticle));
     }
 }

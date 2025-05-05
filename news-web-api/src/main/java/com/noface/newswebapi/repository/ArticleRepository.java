@@ -1,6 +1,5 @@
 package com.noface.newswebapi.repository;
 
-import com.noface.newswebapi.dto.ArticleOverview;
 import com.noface.newswebapi.entity.Article;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,67 +17,82 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
     Optional<Article> getArticleById(String articleId);
 
     @Query("""
-    SELECT NEW com.noface.newswebapi.dto.ArticleOverview(
-        a.id, 
-        a.title, 
-        a.summary,
-        a.dateCreated,
-        a.lastUpdated,
-        CONCAT(a.author.firstName, ' ', a.author.lastName),
-        a.status,
-        a.thumbnailUrl
-    )
-    FROM Article a
-    LEFT JOIN a.author author
-    WHERE 
-        (:#{#search} IS NULL OR 
-        a.id LIKE %:#{#search}% OR 
-        a.title LIKE %:#{#search}%)
-    AND (:#{#startDate} IS NULL OR a.dateCreated >= :#{#startDate})
-    AND (:#{#endDate} IS NULL OR a.dateCreated <= :#{#endDate})
-    AND (:#{#status} IS NULL OR a.status = :#{#status})
-    ORDER BY a.dateCreated DESC
-""")
-    Page<ArticleOverview> findArticlesWithAuthor(
+                SELECT a
+                FROM Article a
+                WHERE 
+                    (:#{#search} IS NULL OR 
+                    LOWER(a.id) LIKE LOWER(CONCAT('%', :search, '%')) OR 
+                    LOWER(a.title) LIKE LOWER(CONCAT('%', :search, '%')))
+                AND (:#{#updateStartDate} IS NULL OR a.lastUpdated >= :#{#updateStartDate})
+                AND (:#{#updateEndDate} IS NULL OR a.lastUpdated <= :#{#updateEndDate})
+                AND (:#{#publishedStartDate} IS NULL OR a.publishedDate >= :#{#publishedStartDate})
+                AND (:#{#publishedEndDate} IS NULL OR a.publishedDate <= :#{#publishedEndDate})
+                AND (:#{#status} IS NULL OR a.status = :#{#status})
+                AND (:#{#approvedStatus} IS NULL OR a.approvedStatus = :#{#approvedStatus})
+            """)
+    Page<Article> findArticles(
             @Param("search") String search,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate,
+            @Param("updateStartDate") LocalDateTime updateStartDate,
+            @Param("updateEndDate") LocalDateTime updateEndDate,
+            @Param("publishedStartDate") LocalDateTime publishedStartDate,
+            @Param("publishedEndDate") LocalDateTime publishedEndDate,
             @Param("status") String status,
+            @Param("approvedStatus") String approvedStatus,
             Pageable pageable);
+
 
     @Query("""
-    SELECT COUNT(a)
-    FROM Article a
-    LEFT JOIN a.author
-    WHERE ((:#{#search} IS NULL OR a.id LIKE %:#{#id}%) OR (:#{#search} IS NULL OR a.title LIKE %:#{#title}%))
-    AND (:#{#startDate} IS NULL OR a.dateCreated >= :#{#startDate})
-    AND (:#{#endDate} IS NULL OR a.dateCreated <= :#{#endDate})
-    AND (:#{#status} IS NULL OR a.status = :#{#status})
-""")
-    long countArticlesWithFilters(
+            SELECT a
+            FROM Article a
+            JOIN ArticleCategory b ON b.article = a
+            WHERE 
+                (:#{#search} IS NULL OR 
+                LOWER(a.id) LIKE LOWER(CONCAT('%', :search, '%')) OR 
+                LOWER(a.title) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:#{#updateStartDate} IS NULL OR a.lastUpdated >= :#{#updateStartDate})
+            AND (:#{#updateEndDate} IS NULL OR a.lastUpdated <= :#{#updateEndDate})
+            AND (:#{#publishedStartDate} IS NULL OR a.publishedDate >= :#{#publishedStartDate})
+            AND (:#{#publishedEndDate} IS NULL OR a.publishedDate <= :#{#publishedEndDate})
+            AND (:#{#status} IS NULL OR a.status = :#{#status})
+            AND (:#{#approvedStatus} IS NULL OR a.approvedStatus = :#{#approvedStatus})
+            AND  b.category.id = :#{#categoryId}
+            
+            """)
+    Page<Article> findArticlesByCategoryId(
             @Param("search") String search,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate,
-            @Param("status") String status);
-    Page<Article> findArticlesByAuthor_Username(String username, Pageable pageable);
-
-    Page<Article> getArticleByAuthor_Id(String authorId, Pageable pageable);
-    @Query(value = """
-    SELECT NEW com.noface.newswebapi.dto.ArticleOverview(
-        a.id,
-        a.title,
-        a.summary,
-        a.dateCreated,
-        a.lastUpdated,
-        CONCAT(a.author.firstName, ' ', a.author.lastName),
-        a.status,
-        a.thumbnailUrl
-    )
-    FROM Article a
-    JOIN a.articleCategories c
-    WHERE c.category.slug = :categorySlug
-    """)
-    Page<ArticleOverview> getArticlesByCategorySlug(
-            @Param("categorySlug") String categorySlug,
+            @Param("updateStartDate") LocalDateTime updateStartDate,
+            @Param("updateEndDate") LocalDateTime updateEndDate,
+            @Param("publishedStartDate") LocalDateTime publishedStartDate,
+            @Param("publishedEndDate") LocalDateTime publishedEndDate,
+            @Param("categoryId") String categoryId,
+            @Param("status") String status,
+            @Param("approvedStatus") String approvedStatus,
             Pageable pageable);
+    @Query("""
+                SELECT a
+                FROM Article a
+                WHERE 
+                    (:#{#search} IS NULL OR 
+                    LOWER(a.id) LIKE LOWER(CONCAT('%', :search, '%')) OR 
+                    LOWER(a.title) LIKE LOWER(CONCAT('%', :search, '%')))
+                AND (:#{#updateStartDate} IS NULL OR a.lastUpdated >= :#{#updateStartDate})
+                AND (:#{#updateEndDate} IS NULL OR a.lastUpdated <= :#{#updateEndDate})
+                AND (:#{#publishedStartDate} IS NULL OR a.publishedDate >= :#{#publishedStartDate})
+                AND (:#{#publishedEndDate} IS NULL OR a.publishedDate <= :#{#publishedEndDate})
+                AND (:#{#status} IS NULL OR a.status = :#{#status})
+                AND (:#{#approvedStatus} IS NULL OR a.approvedStatus = :#{#approvedStatus})
+                AND (:#{#username} IS NULL OR a.author.username = :#{#username})        
+            """)
+    Page<Article> findArticlesWithUsernameAndFilter(
+            @Param("search") String search,
+            @Param("updateStartDate") LocalDateTime updateStartDate,
+            @Param("updateEndDate") LocalDateTime updateEndDate,
+            @Param("publishedStartDate") LocalDateTime publishedStartDate,
+            @Param("publishedEndDate") LocalDateTime publishedEndDate,
+            @Param("username") String username,
+            @Param("status") String status,
+            @Param("approvedStatus") String approvedStatus,
+            Pageable pageable
+    );
+
 }

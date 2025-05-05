@@ -1,3 +1,5 @@
+server:
+  port: 8081
 spring:
 
   application:
@@ -20,6 +22,17 @@ spring:
 cloudinary:
   CLOUDINARY_URL: cloudinary://355355849832922:Uu5v6iKd52FN7v9SZqp3IuXWyH8@dtshwjjbc
 
+#springdoc:
+#  swagger-ui:
+#    path: /swagger-ui.html
+#    tags-sorter: alpha
+#    operations-sorter: alpha
+#  api-docs:
+#    path: /v3/api-docs
+#  info:
+#    title: Spring Boot Swagger Example
+#    version: 1.0.0
+#    description: API Documentation for Spring Boot Project
 
 jwt:
   signerKey: "xf9P4PE8zjEXX+Z1eApvW3RAjfyuCNfoHCVpcDJitR2Di2tSwoDwpLZcaCNJ/OA1"

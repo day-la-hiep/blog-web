@@ -18,37 +18,59 @@ import javax.crypto.spec.SecretKeySpec;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-public class SecurityConfig{
+public class SecurityConfig {
     private String[] postPermittedRequest = {"/api/auth/users", "/api/auth/introspect", "/api/users", "/api/images/upload"};
     private String[] getPermittedRequest = {"/api/articles/*", "/api/articles",
             "/api/articles/*/thumbnail", "/api/articles/*/comments", "/api/articles/*/comments/*",
             "/api/categories", "/api/categories/*", "/api/users/*", "/api/users/*/articles",
             "/api/categories/*/articles"};
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity httpSecurity) throws Exception {
         httpSecurity
+
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, postPermittedRequest).permitAll()
-                        .requestMatchers(HttpMethod.GET, getPermittedRequest).permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
+//                        .requestMatchers("/api/public/**", "/swagger-ui.html",
+//                                "/swagger-ui/**",
+//                                "/v3/api-docs",
+//                                "/v3/api-docs/**",  // Allow all subpaths (e.g., /v3/api-docs/swagger-config)
+//                                "/swagger-resources/**",
+//                                "/webjars/**").permitAll()
+//                        .requestMatchers(HttpMethod.GET, "/swagger-ui/**").permitAll()
+//                        .requestMatchers(HttpMethod.GET, "/v3/**").permitAll()
+//                        .requestMatchers(HttpMethod.POST, postPermittedRequest).permitAll()
+//                        .requestMatchers(HttpMethod.GET, getPermittedRequest).permitAll()
+//
+//                        .anyRequest().authenticated()
                 )
+
                 .oauth2ResourceServer(oauth2 ->
                         oauth2.jwt(jwt -> {
-                            jwt.decoder(getJwtDecoder());
+                            jwt.decoder(getJwtDecoder())
+                            ;
                         }))
+                .securityMatcher(request ->
+                        !request.getRequestURI().startsWith("/v3/api-docs") &&
+                                !request.getRequestURI().startsWith("/swagger-ui") &&
+                                !request.getRequestURI().startsWith("/swagger-resources")
+                )
+
 
         ;
 
 
         return httpSecurity.build();
     }
+
     @Value("${jwt.signerKey}")
     private String SIGNER_KEY;
+
     @Bean
-    JwtDecoder getJwtDecoder(){
+    JwtDecoder getJwtDecoder() {
         SecretKeySpec secretKeySpec = new SecretKeySpec(SIGNER_KEY.getBytes(), "HS512");
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(secretKeySpec)
                 .macAlgorithm(MacAlgorithm.HS512).build();
@@ -56,6 +78,5 @@ public class SecurityConfig{
     }
 
 
-    
 }
 

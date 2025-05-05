@@ -1,13 +1,16 @@
 package com.noface.newswebapi.entity;
 
 
+import com.noface.newswebapi.cons.ArticleApprovedStatus;
 import com.noface.newswebapi.cons.ArticleStatus;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.validator.constraints.UniqueElements;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
@@ -27,6 +30,9 @@ public class Article {
     @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id")
     String id;
+    @Column(name = "name", unique = true, nullable = false)
+    @NotBlank
+    String name;
 
     @Column(name = "title")
     String title;
@@ -36,17 +42,9 @@ public class Article {
     @Column(name = "content", columnDefinition = "TEXT")
     String content;
 
-    @Column(name = "dateCreated")
-    @DateTimeFormat
-    LocalDateTime dateCreated;
-
     @Column(name = "lastUpdated")
     @DateTimeFormat
     LocalDateTime lastUpdated;
-
-
-    @Column(name = "status")
-    String status;
 
     @Column(name = "thumbnailUrl")
     String thumbnailUrl;
@@ -64,7 +62,13 @@ public class Article {
             cascade = CascadeType.ALL, orphanRemoval = true)
     Set<Comment> comments;
 
-    @OneToMany(mappedBy = "article", fetch = FetchType.LAZY,
-            cascade = CascadeType.ALL, orphanRemoval = true)
-    Set<SavedArticle> savedArticle;
+
+    @Column()
+    LocalDateTime publishedDate;
+
+    @Column()
+    String status = ArticleStatus.DRAFT.getName();
+
+    @Column()
+    String approvedStatus = ArticleApprovedStatus.NONE.getName();
 }
