@@ -247,7 +247,6 @@ export async function uploadPostImage(articleId: string, file: File): Promise<an
         throw error;
     }
 
-    return await response.json();
 }
 
 
@@ -555,4 +554,58 @@ export async function fetchPostsByUsername(
         console.error("Error fetch my posts")
     }
 }
+
+// Function to add a post to a saved list
+export const addPostToSavedList = async (listId: string, postId: string, token: string) => {
+    try {
+        const response = await axios.post(`${baseUrl}/saved-lists/${listId}/articles/`, {
+            articleIds: [postId]
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // Assuming Bearer token
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error adding post to saved list:', error);
+        throw error;
+    }
+};
+
+// Function to get user's saved lists
+export const getUserSavedLists = async () => {
+    try {
+        const token = localStorage.getItem('token')
+        const response = await axios.get(`${baseUrl}/users/me/saved-lists`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        // API trả về response.data.result.items
+        return response.data.result;
+    } catch (error) {
+        console.error('Error fetching user saved lists:', error);
+        throw error;
+    }
+};
+
+// Function to create a new saved list
+export const createSavedList = async (name: string) => {
+    try {
+        const token = localStorage.getItem('token')
+        const response = await axios.post(`${baseUrl}/users/me/saved-lists`, {
+            name: name
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        return response.data.result;
+    } catch (error) {
+        console.error('Error creating saved list:', error);
+        throw error;
+    }
+};
 

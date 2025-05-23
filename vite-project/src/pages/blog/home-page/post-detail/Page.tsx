@@ -40,6 +40,8 @@ import hljs from "highlight.js"
 import 'highlight.js/styles/atom-one-light.css';// Mock data for a single post
 import { createComment, fetchCommentsByArticle } from "@/service/CommentApi"
 import { useAuth } from "@/hooks/AuthProvider"
+import { getUserSavedLists, addPostToSavedList, createSavedList } from "@/service/PostApi"
+import { reportTarget } from "@/service/ReportApi"
 const postData = {
     id: "1",
     title: "Getting Started with Next.js: A Comprehensive Guide",
@@ -158,8 +160,27 @@ export default function PostDetailPage() {
     const [reportDetails, setReportDetails] = React.useState("")
     const [isSubmittingReport, setIsSubmittingReport] = React.useState(false)
 
+    // State for save dialog
+    const [saveDialogOpen, setSaveDialogOpen] = React.useState(false)
+    const [selectedListId, setSelectedListId] = React.useState<string | null>(null)
+
     // State for save confirmation
     const [isSaving, setIsSaving] = React.useState(false)
+    // State for user's saved lists and whether the current post is saved
+    const [savedLists, setSavedLists] = React.useState<any[]>([])
+    const [isPostSaved, setIsPostSaved] = React.useState(false)
+    const [isLoadingSavedLists, setIsLoadingSavedLists] = React.useState(false)
+
+    // State for create new saved list dialog
+    const [createListDialogOpen, setCreateListDialogOpen] = React.useState(false)
+    const [newListName, setNewListName] = React.useState("")
+    const [isCreatingList, setIsCreatingList] = React.useState(false)
+
+    // State cho dialog báo cáo bài viết
+    const [reportArticleDialogOpen, setReportArticleDialogOpen] = React.useState(false)
+    const [isSubmittingArticleReport, setIsSubmittingArticleReport] = React.useState(false)
+    const [reportArticleReason, setReportArticleReason] = React.useState("")
+    const [reportArticleDetails, setReportArticleDetails] = React.useState("")
 
     // In a real app, you would fetch the post and comments data based on the ID
     React.useEffect(() => {
@@ -189,6 +210,17 @@ export default function PostDetailPage() {
                         authorUsername: val.authorUsername
                     })))
 
+                }
+
+                // Fetch user's saved lists
+
+                const savedListRes = await getUserSavedLists()
+                if (savedListRes) {
+                    setSavedLists(savedListRes.items)
+                } else {
+                    toast("Lỗi", {
+                        description: "Không tìm thấy danh sách đã lưu",
+                    })
                 }
 
             }
@@ -230,7 +262,7 @@ export default function PostDetailPage() {
         setReportDialogOpen(true)
     }
 
-    const handleSubmitReport = () => {
+    const handleSubmitReport = async () => {
         if (!reportReason) {
             toast("Lỗi", {
                 description: "Vui lòng chọn lý do báo cáo",
@@ -240,8 +272,15 @@ export default function PostDetailPage() {
 
         setIsSubmittingReport(true)
 
-        // In a real app, you would make an API call to submit the report
-        setTimeout(() => {
+        try {
+            if (selectedComment) {
+                await reportTarget({
+                    reason: reportReason,
+                    detail: reportDetails,
+                    targetType: "COMMENT",
+                    targetId: selectedComment.id,
+                })
+            }
             setIsSubmittingReport(false)
             setReportDialogOpen(false)
             setReportReason("")
@@ -251,17 +290,77 @@ export default function PostDetailPage() {
             toast("Báo cáo đã được gửi", {
                 description: "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét nội dung này.",
             })
-        }, 1000)
+        } catch (error) {
+            setIsSubmittingReport(false)
+            toast("Lỗi", {
+                description: "Không thể gửi báo cáo. Vui lòng thử lại sau.",
+            })
+        }
     }
 
-    const handleSavePost = () => {
+    const handleSavePost = async () => {
         setIsSaving(true)
 
         // In a real app, you would make an API call to save/unsave the post
+        if (!auth.token || auth.userInfo.role === 'GUEST') {
+            toast("Lỗi", {
+                description: "Vui lòng đăng nhập để lưu bài viết.",
+            })
+            setIsSaving(false)
+            return
+        }
+
+        if (savedLists.length === 0) {
+            toast("Thông báo", {
+                description: "Bạn chưa có danh sách đã lưu nào. Vui lòng tạo một danh sách trước.",
+            })
+            setIsSaving(false)
+            // Optionally, could prompt user to create a list here
+            return
+        }
+
+        // For now, add to the first saved list found
+        const targetListId = savedLists[0].id // Assuming list object has an 'id'
+
+        try {
+            // Assuming auth.token holds the user's token
+            await addPostToSavedList(targetListId, postId as string, auth.token)
+            setIsPostSaved(true)
+            toast("Thành công", {
+                description: "Bài viết đã được lưu.",
+            })
+        } catch (error) {
+            console.error("Error saving post:", error)
+            toast("Lỗi", {
+                description: "Không thể lưu bài viết.",
+            })
+        } finally {
+            setIsSaving(false)
+        }
+
     }
 
     const handleViewAuthorProfile = (username: string) => {
         navigate(`/users/${username}`)
+    }
+
+    const handleCreateList = async () => {
+        if (!newListName.trim()) {
+            toast("Lỗi", { description: "Vui lòng nhập tên danh sách." })
+            return
+        }
+        setIsCreatingList(true)
+        try {
+            const newList = await createSavedList(newListName)
+            toast("Thành công", { description: "Đã tạo danh sách lưu mới." })
+            setCreateListDialogOpen(false)
+            setNewListName("")
+            setSavedLists(prev => [...prev, newList])
+        } catch (error) {
+            toast("Lỗi", { description: "Không thể tạo danh sách." })
+        } finally {
+            setIsCreatingList(false)
+        }
     }
 
     return (
@@ -280,24 +379,18 @@ export default function PostDetailPage() {
 
                     <Card>
                         <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    {/* <div className="flex items-center gap-2">
-                                    {post.tags.map((tag) => (
-                                        <Badge key={tag} variant="secondary">
-                                            {tag}
-                                        </Badge>
-                                    ))}
-                                </div> */}
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="space-y-1 flex-1">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-3xl">{post.title}</CardTitle>
 
-                                    <CardTitle className="text-3xl">{post.title}</CardTitle>
+                                    </div>
                                     <CardDescription>
                                         <div className="flex items-center gap-4">
                                             <div className="flex items-center gap-2">
                                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                                 <span>{new Date(post.date).toLocaleDateString('vi-VN')}</span>
                                             </div>
-
                                             <div className="flex items-center gap-2">
                                                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                                 <span>{comments.length} comments</span>
@@ -305,19 +398,21 @@ export default function PostDetailPage() {
                                         </div>
                                     </CardDescription>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 self-start">
+                                    <Button variant="outline" size="icon" onClick={() => setSaveDialogOpen(true)} disabled={!auth.token || auth.userInfo.role === 'GUEST'}>
+                                        <BookmarkPlus className="h-5 w-5" />
+                                    </Button>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
+                                            <Button className="cursor-pointer" variant="ghost" size="icon">
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setReportArticleDialogOpen(true)}>
                                                 <Flag className="mr-2 h-4 w-4" />
-                                                <span>Report Post</span>
+                                                <span>Báo cáo bài viết</span>
                                             </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={() => navigate(`/dashboard/posts/edit/${post.id}`)}>
                                                 <Eye className="mr-2 h-4 w-4" />
                                                 <span>Edit Post</span>
@@ -350,14 +445,6 @@ export default function PostDetailPage() {
                                 )
                             }} />
                         </CardContent>
-                        <CardFooter className="flex justify-end">
-                            {/* <div className="flex items-center gap-2">
-                                <Button variant="outline" size="sm" onClick={handleSavePost} disabled={isSaving}>
-                                    {post.isSaved ? <Check className="mr-2 h-4 w-4" /> : <BookmarkPlus className="mr-2 h-4 w-4" />}
-                                    {post.isSaved ? "Đã lưu" : "Lưu bài viết"}
-                                </Button>
-                            </div> */}
-                        </CardFooter>
                     </Card>
 
                     <div className="space-y-4">
@@ -492,6 +579,126 @@ export default function PostDetailPage() {
                                 </Button>
                                 <Button onClick={handleSubmitReport} disabled={isSubmittingReport}>
                                     {isSubmittingReport ? "Sending..." : "Submit Report"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Lưu bài viết vào danh sách</DialogTitle>
+                                <DialogDescription>Chọn danh sách để lưu bài viết này hoặc tạo mới.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {savedLists.length === 0 && <div className="text-muted-foreground text-sm">Bạn chưa có danh sách nào.</div>}
+                                {savedLists.map((list: any) => (
+                                    <div key={list.id} className="flex items-center justify-between border rounded px-3 py-2">
+                                        <span>{list.name}</span>
+                                        <Button size="sm" variant="outline" onClick={async () => {
+                                            setIsSaving(true)
+                                            try {
+                                                await addPostToSavedList(list.id, postId as string, auth.token)
+                                                setIsPostSaved(true)
+                                                toast("Thành công", { description: `Đã lưu vào "${list.name}".` })
+                                                setSaveDialogOpen(false)
+                                            } catch {
+                                                toast("Lỗi", { description: "Không thể lưu vào danh sách này." })
+                                            } finally {
+                                                setIsSaving(false)
+                                            }
+                                        }} disabled={isSaving || isPostSaved}>
+                                            {isPostSaved ? <Check className="h-4 w-4" /> : "Lưu"}
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex items-center justify-end mt-2">
+                                <Button variant="secondary" size="sm" onClick={() => setCreateListDialogOpen(true)} disabled={isCreatingList || !auth.token || auth.userInfo.role === 'GUEST'}>
+                                    + Tạo danh sách mới
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={createListDialogOpen} onOpenChange={setCreateListDialogOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Tạo danh sách lưu mới</DialogTitle>
+                                <DialogDescription>Nhập tên danh sách lưu để tạo mới.</DialogDescription>
+                            </DialogHeader>
+                            <input
+                                className="border rounded px-3 py-2 w-full"
+                                placeholder="Tên danh sách..."
+                                value={newListName}
+                                onChange={e => setNewListName(e.target.value)}
+                                disabled={isCreatingList}
+                            />
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setCreateListDialogOpen(false)} disabled={isCreatingList}>Hủy</Button>
+                                <Button onClick={async () => {
+                                    await handleCreateList()
+                                }} disabled={isCreatingList || !newListName.trim()}>
+                                    {isCreatingList ? "Đang tạo..." : "Tạo danh sách"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={reportArticleDialogOpen} onOpenChange={setReportArticleDialogOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Báo cáo bài viết</DialogTitle>
+                                <DialogDescription>Vui lòng chọn lý do báo cáo bài viết này. Báo cáo sẽ được gửi tới quản trị viên.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <div className="font-medium">Lý do báo cáo</div>
+                                    <RadioGroup value={reportArticleReason} onValueChange={setReportArticleReason}>
+                                        {reportReasons.map((reason) => (
+                                            <div key={reason.id} className="flex items-center space-x-2">
+                                                <RadioGroupItem value={reason.id} id={"article-" + reason.id} />
+                                                <Label htmlFor={"article-" + reason.id}>{reason.label}</Label>
+                                            </div>
+                                        ))}
+                                    </RadioGroup>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="report-article-details">Chi tiết bổ sung (không bắt buộc)</Label>
+                                    <Textarea
+                                        id="report-article-details"
+                                        placeholder="Vui lòng cung cấp thêm thông tin về báo cáo..."
+                                        value={reportArticleDetails}
+                                        onChange={e => setReportArticleDetails(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setReportArticleDialogOpen(false)} disabled={isSubmittingArticleReport}>Hủy</Button>
+                                <Button onClick={async () => {
+                                    if (!reportArticleReason) {
+                                        toast("Lỗi", { description: "Vui lòng chọn lý do báo cáo" })
+                                        return
+                                    }
+                                    setIsSubmittingArticleReport(true)
+                                    try {
+                                        await reportTarget({
+                                            reason: reportArticleReason,
+                                            detail: reportArticleDetails,
+                                            targetType: "ARTICLE",
+                                            targetId: postId as string,
+                                        })
+                                        setIsSubmittingArticleReport(false)
+                                        setReportArticleDialogOpen(false)
+                                        setReportArticleReason("")
+                                        setReportArticleDetails("")
+                                        toast("Báo cáo đã được gửi", { description: "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét nội dung này." })
+                                    } catch (error) {
+                                        setIsSubmittingArticleReport(false)
+                                        toast("Lỗi", { description: "Không thể gửi báo cáo. Vui lòng thử lại sau." })
+                                    }
+                                }} disabled={isSubmittingArticleReport}>
+                                    {isSubmittingArticleReport ? "Đang gửi..." : "Gửi báo cáo"}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
