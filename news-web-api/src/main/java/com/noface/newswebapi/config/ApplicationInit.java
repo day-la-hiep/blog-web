@@ -27,7 +27,12 @@ public class ApplicationInit {
         ApplicationRunner runner = args -> {
 
             if (userService.userExisted("admin") == false) {
-                User user = User.builder().username("admin").password(passwordEncoder.encode("admin")).build();
+                User user = User.builder().username("admin")
+                        .password(passwordEncoder.encode("admin"))
+                        .firstName("admin")
+                        .lastName("admin")
+
+                        .build();
                 user.setUserRole(UserRole.ADMIN.name());
                 userRepository.save(user);
             }

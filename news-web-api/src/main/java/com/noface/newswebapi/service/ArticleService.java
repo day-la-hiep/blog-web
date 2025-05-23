@@ -24,7 +24,10 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -68,6 +71,8 @@ public class ArticleService {
                 });
         Article newArticle = new Article();
         articleMapper.updateArticle(newArticle, article);
+        newArticle.setName(generateUniqueTitle(request.getName()));
+        newArticle.setDateCreated(LocalDateTime.now());
         newArticle.setArticleCategories(new HashSet<>());
         newArticle.setStatus(ArticleStatus.DRAFT.getName());
         newArticle.setApprovedStatus(ArticleApprovedStatus.NONE.getName());
@@ -209,6 +214,7 @@ public class ArticleService {
                     .name(article.getName())
                     .title(article.getTitle())
                     .status(article.getStatus())
+                    .approvedStatus(article.getApprovedStatus())
                     .build();
         } else {
             throw new AppException(ErrorCode.ARTICLE_NOT_PENDING);
@@ -258,6 +264,9 @@ public class ArticleService {
     public ArticleDeleteResponse removeArticleById(String id) {
         Article article = articleRepository.getArticleById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
+        if(article.getStatus().equals(ArticleStatus.DRAFT.getName())) {
+            throw new AppException(ErrorCode.ARTICLE_NOT_DRAFT);
+        }
         ArticleResponse articleResponse = articleMapper.toArticleResponse(article);
         articleRepository.delete(article);
         return ArticleDeleteResponse.builder()
@@ -395,5 +404,41 @@ public class ArticleService {
             throw new AppException(ErrorCode.INVALID_STATUS);
         }
     }
+
+    private String generateUniqueTitle(String baseTitle) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<Article> existingArticles = articleRepository
+                .findArticlesByAuthorUsernameAndNameStartingWith(username, baseTitle);
+        Set<Integer> usedNumbers = new HashSet<>();
+        Pattern pattern = Pattern.compile(Pattern.quote(baseTitle) + "(?: \\((\\d+)\\))?$");
+
+        boolean hasBase = false;
+
+        for (Article post : existingArticles) {
+            Matcher matcher = pattern.matcher(post.getName());
+            if (matcher.matches()) {
+                if (matcher.group(1) != null) {
+                    int number = Integer.parseInt(matcher.group(1));
+                    usedNumbers.add(number);
+                } else {
+                    hasBase = true;
+                }
+            }
+        }
+
+        if (!hasBase) {
+            return baseTitle;
+        }
+
+        for (int i = 1; i <= usedNumbers.size() + 1; i++) {
+            if (!usedNumbers.contains(i)) {
+                return baseTitle + " (" + i + ")";
+            }
+        }
+
+        // fallback (nên không bao giờ tới đây)
+        return baseTitle + " (" + (usedNumbers.size() + 1) + ")";
+    }
+
 }
 

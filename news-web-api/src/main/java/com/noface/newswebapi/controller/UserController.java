@@ -1,10 +1,12 @@
 package com.noface.newswebapi.controller;
 
 import com.noface.newswebapi.dto.PagedResult;
+import com.noface.newswebapi.dto.article.UploadImageResponse;
 import com.noface.newswebapi.dto.user.*;
 import com.noface.newswebapi.dto.ApiResponse;
 import com.noface.newswebapi.dto.mapper.UserMapper;
 import com.noface.newswebapi.service.ArticleService;
+import com.noface.newswebapi.service.FileUploadService;
 import com.noface.newswebapi.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.*;
@@ -17,6 +19,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequiredArgsConstructor
@@ -34,6 +39,8 @@ public class UserController {
     UserMapper userMapper;
     @Autowired
     private ArticleService articleService;
+    @Autowired
+    private FileUploadService fileUploadService;
 
     @PostMapping("/users")
     public ApiResponse<UserCreateRespone> createUser(@RequestBody UserCreateRequest request) {
@@ -52,7 +59,7 @@ public class UserController {
         return response;
     }
 
-    @PutMapping("/users/{username}/password")
+    @PostMapping("/users/{username}/password")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or authentication.name == #username or #username == 'me'")
     public ApiResponse<UserRespone> updatePassword(@PathVariable String username, @RequestBody PasswordChangeRequest request) {
         if(username.equals("me")){
@@ -118,6 +125,20 @@ public class UserController {
     public ApiResponse<RoleUpdateResponse> updateUserRole(@PathVariable String username, @RequestBody RoleUpdateRequest request) {
         return ApiResponse.<RoleUpdateResponse>builder()
                 .result(userService.updateRole(username, request))
+                .build();
+    }
+
+    @PostMapping("/users/{username}/avatar")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or authentication.name == #username or #username == 'me'")
+    public ApiResponse<UploadImageResponse> uploadAvatar(
+            @RequestParam("file") MultipartFile file,
+            @PathVariable String username
+            ) throws IOException {
+        if(username.equals("me")){
+            username = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+        return ApiResponse.<UploadImageResponse>builder()
+                .result(fileUploadService.uploadUserAvatar(username, file))
                 .build();
     }
 

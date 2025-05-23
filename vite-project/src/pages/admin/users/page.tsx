@@ -19,9 +19,12 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import { fetch } from "@cloudinary/url-gen/qualifiers/source"
+import { fetchUsers } from "@/service/UserApi"
+import { Description } from "@radix-ui/react-dialog"
 
 // Mock data
-const users = [
+const mockUsers = [
   {
     id: "1",
     name: "John Doe",
@@ -81,43 +84,44 @@ export default function UsersPage() {
   const [selectedRole, setSelectedRole] = React.useState("")
   const [dobStart, setDobStart] = React.useState("")
   const [dobEnd, setDobEnd] = React.useState("")
-  const [pageSize, setPageSize] = React.useState("10")
-  const [currentPage, setCurrentPage] = React.useState(1)
+  const [pageLimit, setPageLimit] = React.useState(10)
+  const [currentPage, setCurrentPage] = React.useState(0)
   const [userDetailOpen, setUserDetailOpen] = React.useState(false)
-  const [selectedUser, setSelectedUser] = React.useState<(typeof users)[0] | null>(null)
+  const [selectedUser, setSelectedUser] = React.useState<(typeof mockUsers)[0] | null>(null)
+  const [filteredUsers, setFilteredUsers] = React.useState<{
+    id: string,
+    name: string, 
+    email: string,
+    description: string,
+    dob: Date,
+  }[]>(mockUsers)
+  const totalItems = React.useRef<number>(0)
+  const totalPages = React.useRef<number>(0)
+
+  const updateUser = async () => {
+    const res = await fetchUsers({
+      page: currentPage,
+      limit: pageLimit,
+      searchBy: searchQuery,
+    })
+    alert(JSON.stringify(res, null, 2))
+    setFilteredUsers(res.items.map((item) => ({
+      id: item.id,
+      name: item.firstName + ' ' + item.lastName,
+      email: item.mail,
+      description: item.description
+    })))
+
+  }
+
+  React.useEffect(() => {
+    alert("Init user")
+    updateUser()
+  }, [])
 
   // Filter users based on filters
-  const filteredUsers = React.useMemo(() => {
-    let filtered = [...users]
 
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (user) =>
-          user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.description.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    }
-
-    // Filter by role
-    if (selectedRole) {
-      filtered = filtered.filter((user) => user.role === selectedRole)
-    }
-
-    // Filter by date of birth range
-    if (dobStart) {
-      filtered = filtered.filter((user) => user.dob >= dobStart)
-    }
-
-    if (dobEnd) {
-      filtered = filtered.filter((user) => user.dob <= dobEnd)
-    }
-
-    return filtered
-  }, [searchQuery, selectedRole, dobStart, dobEnd])
-
-  const handlePreviewUser = (user: (typeof users)[0]) => {
+  const handlePreviewUser = (user: (typeof mockUsers)[0]) => {
     setSelectedUser(user)
     setUserDetailOpen(true)
   }
@@ -234,7 +238,7 @@ export default function UsersPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">Items per page:</p>
-                <Select value={pageSize} onValueChange={setPageSize}>
+                <Select value={pageLimit} onValueChange={setPageLimit}>
                   <SelectTrigger className="w-[70px]">
                     <SelectValue placeholder="10" />
                   </SelectTrigger>
@@ -246,7 +250,7 @@ export default function UsersPage() {
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
-                  Showing {Math.min(filteredUsers.length, Number.parseInt(pageSize, 10))} of {filteredUsers.length}{" "}
+                  Showing {Math.min(filteredUsers.length, Number.parseInt(pageLimit, 10))} of {filteredUsers.length}{" "}
                   results
                 </p>
               </div>

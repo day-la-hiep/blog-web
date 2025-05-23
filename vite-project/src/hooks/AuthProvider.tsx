@@ -1,110 +1,84 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
-import { jwtDecode } from 'jwt-decode';
-import { authenticate, verifyToken } from "@/service/UserService";
-import { boolean } from "zod";
-
-
-
-interface TokenInfo {
-    iss: string;       // issuer
-    sub: string;       // subject (username, userid…)
-    exp: number;       // expiration time (UNIX timestamp)
-    iat: number;       // issued-at time (UNIX timestamp)
-    scope: string;     // ví dụ: "ROLE_USER ROLE_ADMIN"
-}
-export function getTokenInfo(token: string): TokenInfo {
-    return jwtDecode<TokenInfo>(token);
-}
-interface UserInfo {
+import { getTokenInfo, introspect, login } from "@/service/AuthApi";
+import { useContext, createContext, useState, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+type UserInfo = {
     username: string,
-    scope: string[]
+    role: 'ROLE_ADMIN' |'ROLE_USER'| 'ROLE_MODERATOR' | 'GUEST'
 }
-type AuthValue = {
+const AuthContext = createContext<{
+    userInfo: UserInfo
     token: string,
-    auth: (username : string, password : string) => Promise<boolean | null>,
-    logout: Function,
-    userInfo: UserInfo | null
-}
-const AuthContext = createContext<AuthValue>({
-    token: "",
-    auth: () => Promise.resolve(null),
-    logout: () => {},
-    userInfo: null
-});
-interface AuthProviderProps {
-    children: ReactNode
-}
-const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-    const [token, setToken] = useState(localStorage.getItem("token") || "")
-    const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
-    useEffect(() => {
+    loginAction:  (username: string, password: string) => Promise<boolean>,
+    logout: () => void,
+    verifyToken : () => Promise<boolean>
+} >();
 
-        if (token !== "") {
-            verifyToken(token).then((res) => {
-                if (res.valid == false) {
-                    localStorage.removeItem("token")
-                    setToken("")
-                } else {
-                    localStorage.setItem("token", token)
-                    const tokenInfo = getTokenInfo(token)
-                    setUserInfo({
-                        username: tokenInfo.sub,
-                        scope: tokenInfo.scope.split(" ")
-                    })
-                }
-            })
-        }
-    }, [token])
-
-    const auth = useCallback(async (username: string, password: string) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const initUserInfo: UserInfo = {
+        username: '',
+        role: 'GUEST'
+    }
+    const [token, setToken] = useState("");
+    const [userInfo, setUserInfo] = useState<UserInfo>(initUserInfo)
+    const navigate = useNavigate();
+    const loginAction = async (username: string, password: string) => {
         try {
-            const result = await authenticate(username, password)
-            if(result.authenticated == true){
-                localStorage.setItem("token", result.token)
-                setToken(result.token)
+            const res = await login(username, password)
+            if (res) {
+                setToken(res.token);
+                localStorage.setItem("token", res.token);
+                const tokenInfo = getTokenInfo(res.token)
+                const userInfo: UserInfo = {
+                    username: tokenInfo.sub,
+                    role: tokenInfo.scope
+                }
+                setUserInfo(userInfo)
+                return res.authenticated
             }
-            return result.authenticated
-
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            return false;
+            throw new Error(res.message);
+        } catch (err) {
+            console.error(err);
         }
+    };
+    const logout = () => {
+        setToken("");
+        localStorage.removeItem("token");
+        setUserInfo(initUserInfo)
+    };
 
-    }, [])
-    const logout = useCallback(() => {
-        localStorage.removeItem("token")
-        setToken("")
-        setUserInfo(null)
-        setToken("")
-    }, [])
-    useEffect(() => {
-        auth("admin", "admin")
-    }, [])
-
-
-
+    const verifyToken = async () => {
+        const token = localStorage.getItem('token') || ''
+        const res = await introspect(token)
+        if (res.valid) {
+            const tokenInfo = getTokenInfo(token)
+            const userInfo: UserInfo = {
+                username: tokenInfo.sub,
+                role: tokenInfo.scope
+            }
+            setToken(token)
+            setUserInfo(userInfo)
+        } else {
+            setToken('')
+            setUserInfo(initUserInfo)
+            localStorage.removeItem('token')
+        }
+        return res.valid
+    }
+    const value = {userInfo, token, loginAction, logout, verifyToken}
 
     return (
-        <AuthContext.Provider value={{ token, auth,  logout, userInfo }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
-    )
+    );
 
 
-}
+};
 
-
-
-
-
-const useAuthService = () => {
-    const context = useContext(AuthContext)
-    if (context === undefined) {
-        console.error('Missing auth provider when using useAuthService')
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error("useAuth must be used within an AuthProvider");
     }
-    return context
-}
-export {
-    useAuthService,
-    AuthProvider
-}
+    return context;
+};

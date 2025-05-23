@@ -4,6 +4,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -16,9 +17,11 @@ public class ArticleOverviewResponse {
     String title;
     String summary;
     LocalDateTime lastUpdated;
+    LocalDateTime dateCreated;
     String author;
     String status;
     String approvedStatus;
     String thumbnailUrl;
+    List<String> categories;
 
 }

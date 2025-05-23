@@ -1,0 +1,74 @@
+import { baseUrl } from "@/utils/AppInfo";
+import axios from "axios";
+
+export async function fetchCommentsByArticle(aritcleId: string, {
+    page = 0,
+    limit = 10,
+    sortBy = '-createdAt',
+    search
+}: {
+    page?: number,
+    limit?: number,
+    sortBy?: string,
+    search?: string
+    }): Promise<{
+        page: number,
+        limit: number,
+        sortBy: string,
+        totalPages: number,
+        totalItems: number,
+        items: {
+            id: string,
+            content: string,
+            parentArticleId: string,
+            authorUsername: string,
+            author: string,
+            createdAt: string
+        }[]
+}> {
+    try {
+        const res = await axios.get(`${baseUrl}/articles/${aritcleId}/comments`, {
+            params: {
+                page: page,
+                limit: limit,
+                sortBy: sortBy,
+                search: search
+            },
+
+        })
+        if (res.data.code === 1000) {
+            return res.data.result
+        }
+        throw Error()
+    } catch (error) {
+        console.error('Error fetching comments')
+        throw error
+    }
+
+}
+
+export async function createComment(aritcleId: string, content : string): Promise<{
+    id: string,
+    content: string,
+    parentArticleId: string,
+    authorUsername: string,
+    author: string,
+    createdAt: string
+}> {
+    try {
+        const res = await axios.post(`${baseUrl}/articles/${aritcleId}/comments`, {
+            content:    content
+        }, {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+        })
+        if (res.data.code === 1000) {
+            return res.data.result
+        }
+        throw Error()
+    } catch (error) {
+        console.error('Error fetching comment')
+        throw error
+    }
+}

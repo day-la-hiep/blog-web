@@ -17,6 +17,7 @@ public class ArticleResponse {
     String name;
     String summary;
     String content;
+    LocalDateTime dateCreated;
     LocalDateTime lastUpdated;
     LocalDateTime publishedDate;
     String author;

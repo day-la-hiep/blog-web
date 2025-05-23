@@ -8,12 +8,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.validator.constraints.UniqueElements;
 import org.springframework.format.annotation.DateTimeFormat;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -65,6 +62,9 @@ public class Article {
 
     @Column()
     LocalDateTime publishedDate;
+
+    @Column()
+    LocalDateTime dateCreated;
 
     @Column()
     String status = ArticleStatus.DRAFT.getName();

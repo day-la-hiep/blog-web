@@ -1,19 +1,22 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import { fetchCategories, fetchPublicCategories } from "@/service/CategoryApi";
+import { fetchPostsByUsername, fetchPublicPosts, fetchPublicPostsByCategories } from "@/service/PostApi";
+import React, { useEffect, useState } from "react";
+import { useActionData, useNavigate } from "react-router-dom";
 // Mock data
-const categories = [
-  { id: "1", name: "All", slug: "all" },
-  { id: "2", name: "Technology", slug: "technology" },
-  { id: "3", name: "Design", slug: "design" },
-  { id: "4", name: "Programming", slug: "programming" },
-  { id: "5", name: "Business", slug: "business" },
-  { id: "6", name: "Productivity", slug: "productivity" },
-]
+// const categories = [
+//   { id: "1", name: "All", slug: "all" },
+//   { id: "2", name: "Technology", slug: "technology" },
+//   { id: "3", name: "Design", slug: "design" },
+//   { id: "4", name: "Programming", slug: "programming" },
+//   { id: "5", name: "Business", slug: "business" },
+//   { id: "6", name: "Productivity", slug: "productivity" },
+// ]
 
-const articles = [
+const posts = [
   {
     id: "1",
     title: "Getting Started with Next.js Next.js Next.js",
@@ -86,49 +89,95 @@ export default function MainContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
   const navigate = useNavigate()
   // Filter articles based on active category
-  const filteredArticles = React.useMemo(() => {
-    if (activeCategory === "all") return articles
 
-    return articles.filter((article) => article.category.toLowerCase() === activeCategory.toLowerCase())
+  const [filteredArticles, setFilteredArticles] = React.useState<{
+    id: string,
+    title: string,
+    name: string,
+    thumbnailUrl: string,
+    summary: string
+  }[]>([])
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = activeCategory == 'all' ? await fetchPublicPosts() : await fetchPublicPostsByCategories(activeCategory)
+      setFilteredArticles(data.items)
+    }
+    fetchData()
   }, [activeCategory])
 
+  const [categories, setCategories] = useState<{
+    id: string,
+    name: string,
+    slug: string
+  }[]>([])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const res = await fetchPublicCategories()
+      console.log(JSON.stringify(res, null, 2))
+      const mappedCategories = res.items.map((category: {
+        id: string,
+        name: string,
+        slug: string
+      }) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug
+      }));
+      mappedCategories.unshift(1)
+      mappedCategories[0] = {
+        id: 0,
+        name: 'All',
+        slug: 'all'
+      }
+      setCategories(mappedCategories);
+    };
+
+    fetchData();
+  }, []);
+
+
   const handleArticleClick = (id: string) => {
-      navigate(`/posts/${id}`)
+    navigate(`/posts/${id}`)
   }
   return (
-    <main className="flex-1 flex flex-col items-center">
-      <div className="container w-full px-4 py-6 sm:px-6">
-        <div className="mb-6 overflow-x-auto">
-          <Tabs defaultValue="all" onValueChange={setActiveCategory}>
-            <TabsList className="h-12">
-              {categories.map((category) => (
-                <TabsTrigger key={category.id} value={category.slug}>
-                  {category.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+    <>
 
-            <TabsContent value="all" className="mt-6">
+      <main className="flex-1 flex flex-col items-center">
+
+        <div className="container w-3/4 px-4 py-6 sm:px-6">
+          <div className="mb-6 overflow-x-auto">
+
+            <Tabs defaultValue="all" onValueChange={(val) => {
+              setActiveCategory(val)
+            }}>
+              <TabsList className="h-12">
+                {categories.map((category) => (
+                  <TabsTrigger key={category.id} value={category.slug}>
+                    {category.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {filteredArticles.map((article) => (
+                {filteredArticles && filteredArticles.map((article) => (
                   <Card
                     key={article.id}
                     className="cursor-pointer overflow-hidden transition-all hover:shadow-md p-0 gap-2"
                     onClick={() => handleArticleClick(article.id)}
                   >
-                    <div className="aspect-3/1 w-full overflow-hidden">
+                    <div className="aspect-16/9 w-full overflow-hidden">
                       <img
-                        src={article.thumbnail || "/placeholder.svg"}
+                        src={article.thumbnailUrl || "/placeholder.svg"}
                         alt={article.title}
                         className="h-full w-full object-cover"
                       />
                     </div>
                     <CardHeader className="px-4 flex-1">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      {/* <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>{article.category}</span>
                         <span>•</span>
                         <span>{article.readTime} read</span>
-                      </div>
+                      </div> */}
                       <CardTitle className="line-clamp-2 text-xl">{article.title}</CardTitle>
                       <CardDescription className="line-clamp-2">{article.summary}</CardDescription>
                     </CardHeader>
@@ -143,49 +192,11 @@ export default function MainContent() {
                   </Card>
                 ))}
               </div>
-            </TabsContent>
-
-            {categories.slice(1).map((category) => (
-              <TabsContent key={category.id} value={category.slug} className="mt-6">
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4   ">
-                  {filteredArticles.map((article) => (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer overflow-hidden transition-all hover:shadow-md"
-                      onClick={() => handleArticleClick(article.id)}
-                    >
-                      <div className="aspect-4/1 w-full overflow-hidden">
-                        <img
-                          src={article.thumbnail || "/placeholder.svg"}
-                          alt={article.title}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <CardHeader className="p-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>{article.category}</span>
-                          <span>•</span>
-                          <span>{article.readTime} read</span>
-                        </div>
-                        <CardTitle className="line-clamp-2 text-xl">{article.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">{article.summary}</CardDescription>
-                      </CardHeader>
-                      <CardFooter className="flex items-center gap-3 p-4 pt-0">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={article.authorAvatar || "/placeholder.svg"} alt={article.author} />
-                          <AvatarFallback>{article.author[0]}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{article.author}</span>
-                        <span className="text-sm text-muted-foreground">{article.date}</span>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+            </Tabs>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+
+    </>
   )
 }   

@@ -8,7 +8,9 @@ import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Mapper(componentModel = "spring")
@@ -38,8 +40,17 @@ public interface ArticleMapper {
 
 
     @Mapping(target = "author", source = "author", qualifiedByName = "toFullName")
+    @Mapping(target = "categories", source = ".", qualifiedByName = "toCategoryName")
     ArticleOverviewResponse toArticleOverviewResponse(Article article);
 
+    @Named("toCategoryName")
+    default List<String> toCategoryName(Article article){
+        List<String> categoryNames = new ArrayList<>();
+        for(ArticleCategory articleCategory : article.getArticleCategories()){
+            categoryNames.add(articleCategory.getCategory().getName());
+        }
+        return categoryNames;
+    }
 
     ArticleOverviewResponse toArticleOverviewResponse(ArticleOverview articleOverview);
 

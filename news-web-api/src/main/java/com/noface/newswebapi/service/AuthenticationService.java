@@ -36,6 +36,7 @@ public class AuthenticationService {
     @Autowired
     private PasswordEncoder passwordEncoder;
     public AuthenticationResponse authenticate(String username, String password) throws JOSEException, ParseException {
+
         User user = userRepository.findByUsername(username).orElseThrow(
                 () -> new AppException(ErrorCode.USER_NOT_EXISTED)
         );

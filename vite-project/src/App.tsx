@@ -1,6 +1,6 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom'
 import DashBoard from './pages/admin/dashboard/Page'
-import AdminPage from '@/pages/admin/page'
+import AdminPage from '@/pages/admin/Page'
 import MainContent from './pages/blog/home-page/Page'
 import CategoryManagementPage from './pages/admin/categories/Page'
 import { Toaster } from 'sonner'
@@ -18,7 +18,9 @@ import CommentsPage from './pages/admin/comments/page'
 import PostDetailPage from './pages/blog/home-page/post-detail/Page'
 import UserProfilePage from './pages/blog/home-page/user-profile/Page'
 import ReportsPage from './pages/admin/report/Page'
-import CreatePostPage from './pages/blog/create-posts/Page'
+import EditPost from './pages/blog/edit-post/Page'
+import TestScreen from './utils/test'
+import AdminProtectedRoute from './routes/AdminProtectedRoutes'
 function App() {
 
   return (
@@ -30,27 +32,32 @@ function App() {
 
         <AuthProvider >
           <Routes>
-            <Route path='dashboard' element={<AdminPage />} >
-              <Route path='users' element={<UserManagementPage />} />
-              <Route path='posts' element={<PostsPage />} />
-              <Route path='comments' element={<CommentsPage />} />
-              <Route path='categories' element={<CategoryManagementPage />} />
-              <Route path='reports' element={<ReportsPage />} />
-            </Route>
-            <Route path={'/admin/login'} element={<AdminLogin />}></Route>
+            
 
+            <Route path='admin' element={<AdminProtectedRoute />}>
+              <Route element={<AdminPage />}>
+                <Route path='dashboard' element={<div>Empty</div>}></Route>
+                <Route path='users' element={<UserManagementPage />} />
+                <Route path='posts' element={<PostsPage />} />
+                <Route path='comments' element={<CommentsPage />} />
+                <Route path='categories' element={<CategoryManagementPage />} />
+                <Route path='reports' element={<ReportsPage />} />
+              </Route>
+            </Route>
+            <Route path='admin/login' element={<AdminLogin />}></Route>
 
             <Route element={<HomePageRoutes>
               <HomepageLayout />
             </HomePageRoutes>}>
               <Route path='/' element={<MainContent />} ></Route>
-              <Route path='/posts/:id' element={<PostDetailPage />} />
+              <Route path='/posts/:postId' element={<PostDetailPage />} />
+              <Route path='/edit-posts/:postId' element={<EditPost />} />
               <Route path='/profile' element={<MyProfilePage />} />
               <Route path='/library' element={<LibaryPage />} />
               <Route path='/my-posts' element={<MyPostsPage />} />
               <Route path='/users/:username' element={<UserProfilePage />} />'
-              <Route path='/create-post' element={<CreatePostPage />} />
             </Route>
+            <Route path='/test' element={<TestScreen />}></Route>
 
 
 

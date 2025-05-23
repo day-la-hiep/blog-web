@@ -14,7 +14,7 @@ import java.util.Set;
 @Builder
 @Data
 public class ArticleCreateRequest {
-    String name;
+    private String name;
     private String title;
     private String summary;
     private String content;

@@ -1,69 +1,80 @@
-import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
-import { ReactNode, useEffect, useState } from "react";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Label } from "@/components/ui/label";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Navigate, useNavigate } from "react-router-dom";
-import { adminDashboardPath, adminLoginPath } from "@/RouteDefinition";
-import { useAuthService } from '@/hooks/AuthProvider'
-type FormData = {
-    username: string;
-    password: string;
-};
+import { useEffect } from "react";
+import { isUint8Array } from "util/types";
+import { getTokenInfo, login } from "@/service/AuthApi";
+import { useAuth } from "@/hooks/AuthProvider";
+import { Input } from "@/components/ui/input";
+import { CustomInput } from "@/components/ui/customInput";
+import { cn } from "@/lib/utils";
 
-const baseUrl = "http://localhost:8080/api/";
+const authSchema = z.object({
+    username: z.string().min(1, "Username is required"),
+    password: z.string().min(1, "Password is required"),
+});
 
+type Auth = z.infer<typeof authSchema>;
 
-interface LoginFormProps {
-}
-const AdminLogin: React.FC<LoginFormProps> = () => {
-    const authService = useAuthService()
+const AdminLogin: React.FC = () => {
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting }
+    } = useForm<Auth>({
+        resolver: zodResolver(authSchema),
+    });
+    const auth = useAuth()
+
     const navigate = useNavigate()
-    const form = useForm<FormData>({
-        "defaultValues": {
-            "username": "",
-            "password": "",
+    const onSubmit = async (data: Auth) => {
+        const valid = await auth.loginAction(data.username, data.password)
+        if (valid) {
+            return (
+                navigate('/admin/posts')
+            )
         }
-    })
-    const onSubmit = async (value: FormData) => {
-        await authService.auth(value.username, value.password)
         
-        navigate(adminDashboardPath)
     };
 
     return (
-
-        <>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <FormField control={form.control} name="username"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Username</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="Enter your username" {...field} />
-                                </FormControl>
-                                <FormDescription className="hidden">This is your username</FormDescription>
-                            </FormItem>
-                        )} />
-                    <FormField
-                        control={form.control}
-                        name="password"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Password</FormLabel>
-                                <FormControl>
-                                    <Input type="password" placeholder="Enter your password" {...field} />
-                                </FormControl>
-                                <FormDescription className="hidden">Type your password here</FormDescription>
-                            </FormItem>
-                        )}
-                    />
-                    <Button type="submit">Submit</Button>
-                </form>
-            </Form>
-        </>
-
+        <div className="container flex flex-col items-center justify-center h-screen">
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <Card className="gap-5 min-w-[360px]">
+                    <CardHeader>
+                        <Label className="text-2xl font-bold">Login</Label>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4">
+                        <div>
+                            <Label>Username</Label>
+                            <Input type="text" {...register("username")} />
+                            {errors.username && (
+                                <p className="text-sm text-red-500">{errors.username.message}</p>
+                            )}
+                        </div>
+                        <div>
+                            <Label>Password</Label>
+                            <Input  type="password" {...register("password")} />
+                            {errors.password && (
+                                <p className="text-sm text-red-500">{errors.password.message}</p>
+                            )}
+                        </div>
+                    </CardContent>
+                    <CardFooter className="gap-4 flex justify-between">
+                        <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                            {isSubmitting ? "Logging in..." : "Login"}
+                        </Button>
+                        <Button type="button" className="flex-1" variant="secondary">
+                            Sign up
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </form>
+        </div>
     );
 };
 

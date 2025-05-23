@@ -168,14 +168,15 @@ public class ArticleController {
     }
 
 
-    @PostMapping("/articles/images")
-    public ApiResponse<UploadArticleImageResponse> uploadArticleImages(
+    @PostMapping("/articles/{articleId}/images")
+    public ApiResponse<UploadImageResponse> uploadArticleImages(
             @RequestParam("file") MultipartFile file,
+            @PathVariable String articleId,
             @RequestParam(defaultValue = "false") boolean overwrite
     ) throws IOException {
-        return ApiResponse.<UploadArticleImageResponse>builder()
-                .result(UploadArticleImageResponse.builder()
-                        .url(fileUploadService.uploadArticleImages(file))
+        return ApiResponse.<UploadImageResponse>builder()
+                .result(UploadImageResponse.builder()
+                        .url(fileUploadService.uploadArticleImages(articleId, file))
                         .success(true)
                         .build())
                 .build();

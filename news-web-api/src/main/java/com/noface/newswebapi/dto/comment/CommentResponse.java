@@ -15,5 +15,6 @@ public class CommentResponse {
     String content;
     String parentArticleId;
     String authorUsername;
+    String author;
     LocalDateTime createdAt;
 }

@@ -95,4 +95,7 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
             Pageable pageable
     );
 
+    List<Article> findArticlesByAuthorUsernameAndNameStartingWith(String authorUsername, String name);
+
+    List<Article> findArticlesByAuthorUsernameAndName(String authorUsername, String name);
 }

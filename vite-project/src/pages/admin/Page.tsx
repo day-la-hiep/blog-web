@@ -24,50 +24,53 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { href, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { title } from "process"
+import { useAuth } from "@/hooks/AuthProvider"
 
 export default function Page() {
-  // const router = useRouter()
-  // const pathname = usePathname()
+  const auth = useAuth()
   const location = useLocation()
   const pathname = location.pathname
   const navigate = useNavigate()
+  
   const handleLogout = () => {
-    // Handle logout logic here
-    // router.push("/")
+    auth?.logout()
+    navigate('/admin/login')
+
   }
 
   const mainNavItems = [
     {
       title: "Dashboard",
       icon: Home,
-      href: "/dashboard",
+      href: "/admin/dashboard",
     },
     {
       title: "Posts",
       icon: FileText,
-      href: "/dashboard/posts",
+      href: "/admin/posts",
     },
     {
       title: "Comments",
       icon: MessageSquare,
-      href: "/dashboard/comments",
+      href: "/admin/comments",
     },
     {
       title: "Users",
       icon: Users,
-      href: "/dashboard/users",
+      href: "/admin/users",
     },
     {
       title: "Categories",
       icon: Tag,
-      href: "/dashboard/categories",
+      href: "/admin/categories",
     },
     {
       title: "Reports",
       icon: Flag,
-      href: "/dashboard/reports",
+      href: "/admin/reports",
     }
   ]
+  
 
   return (
     <SidebarProvider>
@@ -115,29 +118,6 @@ export default function Page() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
-            {/* <SidebarGroup>
-              <SidebarGroupLabel>Settings</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"} tooltip="Settings">
-                      <button onClick={() => navigate("/dashboard/settings")}>
-                        <Settings className="h-4 w-4" />
-                        <span>Settings</span>
-                      </button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Edit Profile">
-                      <button onClick={() => navigate("/dashboard/profile")}>
-                        <User className="h-4 w-4" />
-                        <span>My Profile</span>
-                      </button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup> */}
           </SidebarContent>
           <SidebarFooter>
             <SidebarMenu>
@@ -161,7 +141,7 @@ export default function Page() {
         </Sidebar>
         <div className="flex flex-col">
           <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-            <ScrollArea className="h-full"><Outlet /></ScrollArea>
+            <ScrollArea className=" h-full"><Outlet /></ScrollArea>
           </main>
         </div>
       </div>

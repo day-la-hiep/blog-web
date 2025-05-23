@@ -54,6 +54,9 @@ public class User {
 
     String userRole = UserRole.USER.toString();
 
+    @Column
+    String avatarUrl;
+
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
     Set<Article> createdArticles = new HashSet<>();
 
