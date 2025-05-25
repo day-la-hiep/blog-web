@@ -29,9 +29,10 @@ public interface UserRepository extends JpaRepository<User, String> {
         LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) OR 
         LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR 
         LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR 
-        LOWER(u.mail) LIKE LOWER(CONCAT('%', :search, '%')))
+        LOWER(u.mail) LIKE LOWER(CONCAT('%', :search, '%'))) AND 
+        (:role IS NULL OR u.userRole = :role)
 """)
-    Page<User> findAllWithFilters(@Param("search") String search, Pageable pageable);
+    Page<User> findAllWithFilters(@Param("search") String search, @Param("role") String role, Pageable pageable);
 
     void removeUserByUsername(String username);
 

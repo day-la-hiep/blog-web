@@ -10,8 +10,9 @@ public interface CommentMapper {
 
     public Comment asComment(CommentRequest commentRequest);
     @Mapping(target = "authorUsername", source = "author.username")
-    @Mapping(target = "parentArticleId", source = "parentArticle.id")
     @Mapping(target = "author", source = ".", qualifiedByName = "toFullName")
+    @Mapping(target = "articleTitle", source = "parentArticle.title")
+    @Mapping(target = "articleId", source = "parentArticle.id")
     public CommentResponse toCommentResponse(Comment comment);
 
     @Named("toFullName")

@@ -3,6 +3,8 @@ package com.noface.newswebapi.dto.report;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDateTime;
+
 @AllArgsConstructor
 @Data
 @Builder
@@ -13,5 +15,9 @@ public class ReportResponse {
     private String reason;
     private String detail;
     private String targetId;
+    private String targetType;
     private String authorUsername;
+    private String status;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

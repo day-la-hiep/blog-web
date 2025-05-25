@@ -21,6 +21,7 @@ public class ArticleResponse {
     LocalDateTime lastUpdated;
     LocalDateTime publishedDate;
     String author;
+    String authorUsername;
     String status;
     String approvedStatus;
 

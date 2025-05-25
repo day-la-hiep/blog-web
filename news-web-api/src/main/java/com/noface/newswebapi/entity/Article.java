@@ -59,6 +59,10 @@ public class Article {
             cascade = CascadeType.ALL, orphanRemoval = true)
     Set<Comment> comments;
 
+    @OneToMany(mappedBy = "article", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    Set<SavedArticle> savedArticles;
+
 
     @Column()
     LocalDateTime publishedDate;

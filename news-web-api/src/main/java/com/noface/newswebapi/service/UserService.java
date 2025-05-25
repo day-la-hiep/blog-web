@@ -74,6 +74,9 @@ public class UserService {
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        if(user.getUsername().equals("admin")){
+            throw new AppException(ErrorCode.CANT_EDIT_ROOT_ADMIN_ROLE);
+        }
         user.setUserRole(request.getRoleName());
         userRepository.save(user);
         return RoleUpdateResponse.builder()
@@ -82,8 +85,8 @@ public class UserService {
                 .build();
     }
 
-    public PagedResult<UserRespone> getUsers(String search, Pageable pageable){
-        Page<UserRespone> users = userRepository.findAllWithFilters(search, pageable)
+    public PagedResult<UserRespone> getUsers(String search, String role, Pageable pageable){
+        Page<UserRespone> users = userRepository.findAllWithFilters(search, role, pageable)
                 .map(user -> userMapper.toUserRespone(user));
         return new PagedResult<>(users);
     }

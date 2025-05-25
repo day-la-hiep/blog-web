@@ -19,10 +19,15 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
     @Query("""
                 SELECT a
                 FROM Article a
-                WHERE 
-                    (:#{#search} IS NULL OR 
+                JOIN User u ON a.author = u
+                WHERE (:#{#search} IS NULL OR 
                     LOWER(a.id) LIKE LOWER(CONCAT('%', :search, '%')) OR 
-                    LOWER(a.title) LIKE LOWER(CONCAT('%', :search, '%')))
+                    LOWER(a.title) LIKE LOWER(CONCAT('%', :search, '%')) OR 
+                    LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) OR 
+                    LOWER(u.id) LIKE LOWER(CONCAT('%', :search, '%')) OR 
+                    LOWER(concat(u.firstName, ' ', u.lastName) ) LIKE LOWER(CONCAT('%', :search, '%')) 
+                    
+                )
                 AND (:#{#updateStartDate} IS NULL OR a.lastUpdated >= :#{#updateStartDate})
                 AND (:#{#updateEndDate} IS NULL OR a.lastUpdated <= :#{#updateEndDate})
                 AND (:#{#publishedStartDate} IS NULL OR a.publishedDate >= :#{#publishedStartDate})
@@ -68,6 +73,7 @@ public interface ArticleRepository extends JpaRepository<Article, String> {
             @Param("status") String status,
             @Param("approvedStatus") String approvedStatus,
             Pageable pageable);
+
     @Query("""
                 SELECT a
                 FROM Article a

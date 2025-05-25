@@ -33,7 +33,8 @@ public class SavedList {
     User author;
 
 
-    @OneToMany(mappedBy = "savedList")
+    @OneToMany(mappedBy = "savedList", cascade = CascadeType.ALL, orphanRemoval = true)
+
     Set<SavedArticle> savedArticles = new HashSet<>();
 
 }

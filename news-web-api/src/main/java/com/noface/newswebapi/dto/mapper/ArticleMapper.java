@@ -24,6 +24,7 @@ public interface ArticleMapper {
 
     @Mapping(target = "author", source = "author", qualifiedByName = "toFullName")
     @Mapping(target = "categoryIds", source = "articleCategories", qualifiedByName = "toCategoryIds")
+    @Mapping(target = "authorUsername", source ="author.username" )
     public ArticleResponse toArticleResponse(Article article);
 
 
@@ -41,6 +42,7 @@ public interface ArticleMapper {
 
     @Mapping(target = "author", source = "author", qualifiedByName = "toFullName")
     @Mapping(target = "categories", source = ".", qualifiedByName = "toCategoryName")
+    @Mapping(target = "avatarUrl", source = "author.avatarUrl")
     ArticleOverviewResponse toArticleOverviewResponse(Article article);
 
     @Named("toCategoryName")

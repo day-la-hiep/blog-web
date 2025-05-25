@@ -93,6 +93,7 @@ public class FileUploadService {
 
         String imageUrl = uploadResult.get("secure_url").toString();
         user.setAvatarUrl(imageUrl);
+        userRepository.save(user);
         return UploadImageResponse.builder()
                 .success(true)
                 .url(imageUrl)

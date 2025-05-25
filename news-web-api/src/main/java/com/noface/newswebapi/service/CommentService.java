@@ -1,5 +1,6 @@
 package com.noface.newswebapi.service;
 
+import com.noface.newswebapi.cons.ArticleApprovedStatus;
 import com.noface.newswebapi.dto.PagedResult;
 import com.noface.newswebapi.dto.comment.CommentRequest;
 import com.noface.newswebapi.dto.comment.CommentResponse;
@@ -20,8 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class CommentService {
@@ -69,8 +68,8 @@ public class CommentService {
         return CommentResponse.builder().id(id).build();
     }
 
-    public PagedResult<CommentResponse> getAllComments(String search, Pageable pageable) {
-        Page<CommentResponse> comments = commentRepository.findCommentsWithFilter(search, pageable)
+    public PagedResult<CommentResponse> getAllComments(String search, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+        Page<CommentResponse> comments = commentRepository.findCommentsWithFilter(search, startDate, endDate, pageable)
                 .map(commentMapper::toCommentResponse);
         return new PagedResult<>(comments);
     }
@@ -93,5 +92,16 @@ public class CommentService {
         return commentRepository.findCommentsById(id)
                 .map(commentMapper::toCommentResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_EXISTED));
+    }
+
+    public PagedResult<CommentResponse> getPublicComments(String articleId, Pageable pageable) {
+        Article article = articleRepository.findById(articleId).orElseThrow(
+                () -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));;
+        if(article.getApprovedStatus().equals(ArticleApprovedStatus.ACCEPTED)){
+            throw new AppException(ErrorCode.ARTICLE_NOT_PUBLISHED);
+        }
+        Page<CommentResponse> comments = commentRepository.getCommentsByParentArticle_Id(articleId, pageable)
+                .map(commentMapper::toCommentResponse);
+        return new PagedResult<>(comments);
     }
 }

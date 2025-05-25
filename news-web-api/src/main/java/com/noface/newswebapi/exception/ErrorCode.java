@@ -38,7 +38,7 @@ public enum ErrorCode {
     INVALID_REPORT_STATUS(1031, "Invalid report status"),
     INVALID_REQUEST(1032, "Invalid request"),
 
-    INVALID_DATA(1033, "Invalid data");
+    INVALID_DATA(1033, "Invalid data"), CANT_EDIT_ROOT_ADMIN_ROLE(1034, "Cant edit root admin role");
 
 
     ErrorCode(int code, String message){

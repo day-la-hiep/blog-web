@@ -22,6 +22,7 @@ public class ArticleOverviewResponse {
     String status;
     String approvedStatus;
     String thumbnailUrl;
+    String avatarUrl;
     List<String> categories;
 
 }

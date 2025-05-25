@@ -62,7 +62,7 @@ public class UserController {
     @PostMapping("/users/{username}/password")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or authentication.name == #username or #username == 'me'")
     public ApiResponse<UserRespone> updatePassword(@PathVariable String username, @RequestBody PasswordChangeRequest request) {
-        if(username.equals("me")){
+        if (username.equals("me")) {
             username = SecurityContextHolder.getContext().getAuthentication().getName();
         }
         UserRespone userRespone = userService.changePassword(username, request);
@@ -91,14 +91,15 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int limit,
             @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role) {
         Pageable pageable = PageRequest.of(page, limit,
                 Sort.by(Sort.Direction.fromString(
                                 sortBy.startsWith("-") ? "desc" : "asc"),
                         sortBy.replace("-", "")
                                 .replace("+", "").trim()));
 
-        PagedResult<UserRespone> userRespones = userService.getUsers(search, pageable);
+        PagedResult<UserRespone> userRespones = userService.getUsers(search, role, pageable);
 
         ApiResponse<PagedResult<UserRespone>> response = ApiResponse.<PagedResult<UserRespone>>builder()
                 .result(userRespones)
@@ -108,16 +109,12 @@ public class UserController {
     }
 
 
-
     @DeleteMapping("/users/{username}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or authentication.name == #username")
     public ApiResponse<UserDeleteResponse> deleteUser(@PathVariable String username) {
         log.info("DELETE USER {}", username);
         return ApiResponse.<UserDeleteResponse>builder().result(userService.deleteUser(username)).build();
     }
-
-
-
 
 
     @PutMapping("/users/{username}/roles")
@@ -133,15 +130,14 @@ public class UserController {
     public ApiResponse<UploadImageResponse> uploadAvatar(
             @RequestParam("file") MultipartFile file,
             @PathVariable String username
-            ) throws IOException {
-        if(username.equals("me")){
+    ) throws IOException {
+        if (username.equals("me")) {
             username = SecurityContextHolder.getContext().getAuthentication().getName();
         }
         return ApiResponse.<UploadImageResponse>builder()
                 .result(fileUploadService.uploadUserAvatar(username, file))
                 .build();
     }
-
 
 
 }

@@ -16,5 +16,7 @@ public interface CategoryMapper {
     void updateCategory(@MappingTarget Category category, CategoryUpdateRequest request);
 
     @Mapping(target = "parentId", source = "parentCategory.id")
+    @Mapping(target = "parentName", source = "parentCategory.name")
+    @Mapping(target = "parentSlug", source = "parentCategory.slug")
     CategoryResponse toCategoryResponse(Category category);
 }

@@ -1,6 +1,7 @@
 package com.noface.newswebapi.entity;
 
 import com.noface.newswebapi.cons.CommentReportStatus;
+import com.noface.newswebapi.cons.ReportStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -27,7 +28,7 @@ public class Report {
 
     String targetType;
 
-    String reportStatus;
+    String reportStatus = ReportStatus.PENDING.name();
 
     String targetId;
 

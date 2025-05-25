@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -82,7 +81,7 @@ public class ReportService {
     public CommentReportDeleteResponse deleteReport(String reportId) {
 
         Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Comment report not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.REPORT_NOT_EXISTED));
         reportRepository.delete(report);
         return CommentReportDeleteResponse.builder()
                 .success(true)
@@ -114,7 +113,7 @@ public class ReportService {
         return reportMapper.toReportUpdateResponse(reportRepository.save(report));
     }
 
-    public PagedResult<ReportResponse> getReportsWithFilter(String targetId, String status, String targetType, String search, Pageable pageable) {
+    public PagedResult<ReportResponse> getReportsWithFilter(String targetId, String status, String targetType, String search, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
         try {
             if (status != null) {
                 status = ReportStatus.valueOf(status.toUpperCase()).name();
@@ -132,7 +131,7 @@ public class ReportService {
         }
 
         Page<ReportResponse> reportResponses =
-                reportRepository.findReportsWithFilter(targetId, status, targetType, search, pageable)
+                reportRepository.findReportsWithFilter(targetId, status, targetType, search, startDate, endDate, pageable)
                         .map(reportMapper::toReportResponse);
 
         return new PagedResult<>(reportResponses);

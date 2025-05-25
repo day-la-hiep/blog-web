@@ -1,14 +1,13 @@
 package com.noface.newswebapi.repository;
 
-import aj.org.objectweb.asm.commons.Remapper;
 import com.noface.newswebapi.entity.SavedList;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Repository
@@ -26,4 +25,14 @@ public interface SavedListRepository extends JpaRepository<SavedList, String> {
         )
         """)
     Page<SavedList> findSavedListsWithFilter(String username, String search, Pageable pageable);
+
+@Query("""
+    select sl
+    from SavedArticle sa
+    join sa.savedList sl on sa.savedList.id = sl.id 
+    where sa.article.id = :articleId
+    and sa.savedList.author.username = :username
+""")
+    Page<SavedList> findSavedListsByArticle(@Param("username") String username,
+                                            @Param("articleId") String articleId, Pageable pageable);
 }

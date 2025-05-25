@@ -24,5 +24,5 @@ public class UserRespone {
     String description;
 
     String userRole;
-
+    String avatarUrl;
 }

@@ -13,8 +13,10 @@ public interface ReportMapper {
     @Mapping(target = "authorUsername", source = "author.username")
     ReportCreateResponse toReportCreateResponse(Report report);
     @Mapping(target = "authorUsername", source = "author.username")
+    @Mapping(target = "status", source = "reportStatus")
     ReportResponse toReportResponse(Report report);
 
     @Mapping(target = "authorUsername", source = "author.username")
+    @Mapping(target = "status", source = "reportStatus")
     ReportUpdateResponse toReportUpdateResponse(Report report);
 }

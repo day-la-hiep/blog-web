@@ -11,6 +11,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+
 @RestController
 @RequestMapping("/api")
 public class ReportController {
@@ -43,7 +45,9 @@ public class ReportController {
             @RequestParam(defaultValue = "-createdAt") String sortBy,
             @RequestParam(required = false) String targetId,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String targetType
+            @RequestParam(required = false) String targetType,
+            @RequestParam(required = false)LocalDateTime startDate,
+            @RequestParam(required = false)LocalDateTime endDate
             ) {
         Pageable pageable = PageRequest.of(page, limit,
                 Sort.by(
@@ -51,7 +55,7 @@ public class ReportController {
                         sortBy.replace("+", "").replace("-", "").trim()
                 ));
         return ApiResponse.<PagedResult<ReportResponse>>builder()
-                .result(reportService.getReportsWithFilter(targetId, status, targetType, search, pageable))
+                .result(reportService.getReportsWithFilter(targetId, status, targetType, search, startDate, endDate, pageable))
                 .build();
     }
 

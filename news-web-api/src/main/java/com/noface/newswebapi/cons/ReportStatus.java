@@ -2,8 +2,7 @@ package com.noface.newswebapi.cons;
 
 public enum ReportStatus {
     PENDING("PENDING"),
-    ACCEPTED("ACCEPTED"),
-    REJECTED("REJECTED"),;
+    RESOLVED("RESOLVED"),;
 
     private String name;
     ReportStatus(String name) {

@@ -13,6 +13,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -32,6 +34,7 @@ public class CommentController {
                 .result(response)
                 .build();
     }
+
     @GetMapping("/comments/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_MODERATOR') or " +
             "@commentService.isOwned(#id)")
@@ -61,17 +64,44 @@ public class CommentController {
             "hasAnyAuthority('ROLE_ADMIN', 'ROLE_MODERATOR')")
     public ApiResponse<CommentResponse> deleteComment(
             @PathVariable("id") String id
-    ){
+    ) {
         CommentResponse response = commentService.removeComment(id);
         return ApiResponse.<CommentResponse>builder().result(response).build();
     }
+
+    @GetMapping("/public/articles/{articleId}/comments")
+    public ApiResponse<PagedResult<CommentResponse>> getComments(
+            @PathVariable("articleId") String articleId,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "-id") String sortBy
+    ) {
+        Pageable pageable = PageRequest.of(page, limit, Sort.by(
+                Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
+                sortBy.replace("+", "")
+                        .replace("-", "").trim()
+        ));
+        return ApiResponse.<PagedResult<CommentResponse>>builder()
+                .result(commentService.getPublicComments(articleId, pageable))
+                .build();
+    }
+
     @GetMapping("/articles/{articleId}/comments")
     public ApiResponse<PagedResult<CommentResponse>> getAllCommentsByParentId(
             @PathVariable("articleId") String articleId,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "-createdAt") String sortBy
-    ){
+            @RequestParam(defaultValue = "-createdAt") String sortBy,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) LocalDateTime startDate,
+            @RequestParam(required = false) LocalDateTime endDate
+
+    ) {
+        startDate = startDate != null ? startDate.withHour(0)
+                .withMinute(0).withSecond(0).withNano(0) : startDate;
+        endDate = endDate != null ? endDate.withHour(23).withMinute(59).withSecond(59)
+                .withNano(999_999_999) : endDate;
+
         Pageable pageable = PageRequest.of(page, limit, Sort.by(
                 Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
                 sortBy.replace("+", "")
@@ -87,15 +117,21 @@ public class CommentController {
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "-createdAt") String sortBy,
-            @RequestParam(defaultValue = "") String search
-    ){
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) LocalDateTime startDate,
+            @RequestParam(required = false) LocalDateTime endDate
+    ) {
+        startDate = startDate != null ? startDate.withHour(0)
+                .withMinute(0).withSecond(0).withNano(0) : startDate;
+        endDate = endDate != null ? endDate.withHour(23).withMinute(59).withSecond(59)
+                .withNano(999_999_999) : endDate;
         Pageable pageable = PageRequest.of(page, limit, Sort.by(
-                        Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
-                        sortBy.replace("+", "")
-                                .replace("-", "").trim()));
+                Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
+                sortBy.replace("+", "")
+                        .replace("-", "").trim()));
 
         return ApiResponse.<PagedResult<CommentResponse>>builder()
-                .result(commentService.getAllComments(search, pageable))
+                .result(commentService.getAllComments(search, startDate, endDate, pageable))
                 .build();
     }
 
@@ -107,16 +143,16 @@ public class CommentController {
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int page,
             @PathVariable String username
-    ){
+    ) {
         Pageable pageable = PageRequest.of(page, limit, Sort.by(
                 Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
                 sortBy.replace("+", "")
                         .replace("-", "").trim()
         ));
-        if(username.equals("me")) {
+        if (username.equals("me")) {
             username = SecurityContextHolder.getContext().getAuthentication().getName();
         }
-        PagedResult<CommentResponse> commentResponses =  commentService.getCommentsByUsername(username, pageable);
+        PagedResult<CommentResponse> commentResponses = commentService.getCommentsByUsername(username, pageable);
         return ApiResponse.<PagedResult<CommentResponse>>builder()
                 .result(commentResponses).build();
 

@@ -62,6 +62,8 @@ public class ArticleService {
     private SavedArticleRepository savedArticleRepository;
     @Autowired
     private SavedListMapper savedListMapper;
+    @Autowired
+    private ReportRepository reportRepository;
 
     public ArticleResponse createNewArticle(ArticleCreateRequest request) throws IOException {
         Article article = articleMapper.asArticle(request);
@@ -257,18 +259,26 @@ public class ArticleService {
         approvedStatus = normalizeArticleApprovedStatus(approvedStatus);
         Page<ArticleOverviewResponse> articles = articleRepository
                 .findArticles(search, updateStartDate, updateEndDate, null, null,
-                        status, approvedStatus, pageable).map(articleMapper::toArticleOverviewResponse );
+                        status, approvedStatus, pageable).map((item) -> {
+                            ArticleOverviewResponse response = articleMapper.toArticleOverviewResponse(item);
+                            return response;
+                } );
         return new PagedResult<ArticleOverviewResponse>(articles);
     }
 
     public ArticleDeleteResponse removeArticleById(String id) {
         Article article = articleRepository.getArticleById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTICLE_NOT_EXISTED));
-        if(article.getStatus().equals(ArticleStatus.DRAFT.getName())) {
+        if(!article.getStatus().equals(ArticleStatus.DRAFT.getName())) {
             throw new AppException(ErrorCode.ARTICLE_NOT_DRAFT);
         }
-        ArticleResponse articleResponse = articleMapper.toArticleResponse(article);
         articleRepository.delete(article);
+        List<Report> reports = reportRepository.findReportsByTargetId(id);
+        for(Report report : reports) {
+            reportRepository.delete(report);
+        }
+        ArticleResponse articleResponse = articleMapper.toArticleResponse(article);
+
         return ArticleDeleteResponse.builder()
                 .id(article.getId())
                 .message("Article deleted successfully")
@@ -341,7 +351,6 @@ public class ArticleService {
         target.setTitle(source.getTitle());
         target.setContent(source.getContent());
         target.setSummary(source.getSummary());
-        target.setThumbnailUrl(source.getThumbnailUrl());
 
         if(target.getArticleCategories() != null) {
             target.getArticleCategories().clear();

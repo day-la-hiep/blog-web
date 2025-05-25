@@ -136,4 +136,10 @@ public class SavedListService {
                 .orElseThrow(() -> new AppException(ErrorCode.SAVED_LIST_NOT_EXISTED));
         return savedList.getAuthor().getUsername().equals(username);
     }
+
+    public PagedResult<SavedListResponse> getSavedListsByArticle(String username, String postId, Pageable pageable) {
+        Page<SavedListResponse> savedLists = savedListRepository.findSavedListsByArticle(username, postId, pageable)
+                .map(savedListMapper::toSavedListResponse);
+        return new PagedResult<>(savedLists);
+    }
 }

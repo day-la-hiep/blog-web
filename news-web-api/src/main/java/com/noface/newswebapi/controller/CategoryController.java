@@ -105,6 +105,7 @@ public class CategoryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "name") String sortBy,
+
             @PathVariable String slug
     ){
         Pageable pageable = PageRequest.of(page, limit, Sort.by(

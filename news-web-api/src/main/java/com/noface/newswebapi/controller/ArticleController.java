@@ -72,15 +72,15 @@ public class ArticleController {
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) String approvedStatus,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) LocalDateTime updateStartDate,
-            @RequestParam(required = false) LocalDateTime updateEndDate
+            @RequestParam(required = false) LocalDateTime startDate,
+            @RequestParam(required = false) LocalDateTime endDate
     ) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        updateStartDate = updateStartDate != null ? updateStartDate.withHour(0)
-                .withMinute(0).withSecond(0).withNano(0) : updateStartDate;
-        updateEndDate = updateEndDate != null ? updateEndDate.withHour(23).withMinute(59).withSecond(59)
-                .withNano(999_999_999) : updateEndDate;
+        startDate = startDate != null ? startDate.withHour(0)
+                .withMinute(0).withSecond(0).withNano(0) : startDate;
+        endDate = endDate != null ? endDate.withHour(23).withMinute(59).withSecond(59)
+                .withNano(999_999_999) : endDate;
 
         Pageable pageable = PageRequest.of(page, limit,
                 Sort.by(Sort.Direction.fromString(sortBy.startsWith("-") ? "desc" : "asc"),
@@ -88,7 +88,7 @@ public class ArticleController {
                 ));
 
         PagedResult<ArticleOverviewResponse> articlesResponse = articleService.getArticlesWithFilter(
-                search, updateStartDate, updateEndDate, status, approvedStatus, pageable);
+                search, startDate, endDate, status, approvedStatus, pageable);
         ApiResponse<PagedResult<ArticleOverviewResponse>> response = ApiResponse.<PagedResult<ArticleOverviewResponse>>builder()
                 .result(articlesResponse)
                 .build();
