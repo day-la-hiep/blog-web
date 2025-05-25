@@ -40,11 +40,6 @@ export default function Page() {
 
   const mainNavItems = [
     {
-      title: "Dashboard",
-      icon: Home,
-      href: "/admin/dashboard",
-    },
-    {
       title: "Posts",
       icon: FileText,
       href: "/admin/posts",

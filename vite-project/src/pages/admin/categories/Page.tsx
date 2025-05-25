@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Calendar, ChevronDown, ChevronRight, Eye, ImageIcon, Pencil, PlusCircle, Search, Trash, X } from "lucide-react"
+import { ArrowDownIcon, ArrowDownUp, ArrowUpIcon, Calendar, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, ImageIcon, Pencil, PlusCircle, Search, StickyNote, Trash, X } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,6 +33,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { createCategory, deleteCategory, fetchCategories, updateCategory } from "@/service/CategoryApi"
+import { Controller } from "react-hook-form"
+import { toast } from "sonner"
+import { useRef, useState } from "react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Mock data
 const categories = [
@@ -116,7 +122,7 @@ const categories = [
         updatedAt: "2023-06-24T13:10:00Z",
         publishDate: "2023-05-19T17:00:00Z",
     },
-    
+
     {
         id: "7",
         name: "Sách",
@@ -135,30 +141,16 @@ const categories = [
     },
 ]
 
-// Utility function to get category by ID
-const getCategoryById = (id: string | null) => {
-    if (!id) return null
-    return categories.find((cat) => cat.id === id)
-}
 
-// Utility function to get children categories
-const getChildCategories = (parentId: string | null) => {
-    return categories.filter((cat) => cat.parentId === parentId)
-}
 
-// Utility function to generate slug from name
-const generateSlug = (name: string) => {
-    return name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[đĐ]/g, "d")
-        .replace(/[^a-z0-9\s]/g, "")
-        .replace(/\s+/g, "-")
-}
+
+
+
 
 export default function CategoriesPage() {
     const navigate = useNavigate()
+    const currentPageInputRef = useRef<HTMLInputElement>(null)
+    const [categories, setCategories] = React.useState<any[]>([])
     const [searchQuery, setSearchQuery] = React.useState("")
     const [editDialogOpen, setEditDialogOpen] = React.useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -168,18 +160,17 @@ export default function CategoriesPage() {
     const [statusFilter, setStatusFilter] = React.useState<string>("all")
     const [parentFilter, setParentFilter] = React.useState<string>("all")
     const [expandedCategories, setExpandedCategories] = React.useState<string[]>([])
+    const totalPages = useRef(0)
+    const [sortBy, setSortBy] = React.useState('id')
 
     // Form state for new/edit category
     const [categoryForm, setCategoryForm] = React.useState({
+        id: "",
         name: "",
         slug: "",
         description: "",
         parentId: "",
-        status: "published",
-        metaTitle: "",
-        metaDescription: "",
-        featuredImage: "",
-        publishDate: new Date(),
+        active: true,
     })
 
     // Handle form change
@@ -187,65 +178,56 @@ export default function CategoriesPage() {
         setCategoryForm((prev) => {
             const newForm = { ...prev, [field]: value }
 
-            // Auto-generate slug if name changes and slug hasn't been manually edited
-            if (field === "name" && typeof value === "string") {
-                newForm.slug = generateSlug(value)
-                newForm.metaTitle = value
-            }
-
             return newForm
         })
     }
+    const [currentPage, setCurrentPage] = React.useState(0)
+    const [pageLimit, setPageLimit] = React.useState(10)
+    React.useEffect(() => {
+        const controller = new AbortController();
+        const signal = controller.signal;
 
-    // Filter categories based on search query, status, and parent
-    const filteredCategories = React.useMemo(() => {
-        let filtered = categories
 
-        if (searchQuery) {
-            filtered = filtered.filter(
-                (category) =>
-                    category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    category.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    category.description.toLowerCase().includes(searchQuery.toLowerCase()),
-            )
+        updateCategories()
+        return () => {
+            controller.abort(); // Dừng request cũ
+        };
+    }, [currentPage, pageLimit, searchQuery, statusFilter, sortBy])
+    const updateCategories = async () => {
+
+        try {
+            const data = await fetchCategories({
+                page: currentPage,
+                limit: pageLimit,
+                search: searchQuery,
+                active: statusFilter === "published" ? true : statusFilter === "draft" ? false : undefined,
+                sortBy: sortBy
+            })
+            totalPages.current = data.totalPages
+            currentPageInputRef.current.value = currentPage + 1 + ""
+            setCategories(data.items)
+
+
+        } catch (error) {
+            console.error("Error fetching categories:", error)
         }
-
-        if (statusFilter !== "all") {
-            filtered = filtered.filter((category) => category.status === statusFilter)
-        }
-
-        if (parentFilter !== "all") {
-            if (parentFilter === "none") {
-                filtered = filtered.filter((category) => category.parentId === null)
-            } else {
-                filtered = filtered.filter((category) => category.parentId === parentFilter)
-            }
-        }
-
-        return filtered
-    }, [searchQuery, statusFilter, parentFilter])
-
-    // Root level categories for display
-    const rootCategories = React.useMemo(() => {
-        return filteredCategories.filter((category) => category.level === 0)
-    }, [filteredCategories])
-
-    const handleEditClick = (category: (typeof categories)[0]) => {
+    }
+    const handleEditClick = (category) => {
         setSelectedCategory(category)
         setCategoryForm({
+            id: category.id,
             name: category.name,
             slug: category.slug,
+            parentId: category.parentId,
             description: category.description,
-            parentId: category.parentId || "",
-            status: category.status,
-            metaTitle: category.metaTitle,
-            metaDescription: category.metaDescription,
-            featuredImage: category.featuredImage,
-            publishDate: new Date(category.publishDate),
+            active: category.active
         })
         setEditDialogOpen(true)
     }
+    const handleViewPost = (category: (typeof categories)[0]) => {
 
+        navigate(`/admin/posts?categoryId=${category.id}`)
+    }
     const handleDeleteClick = (category: (typeof categories)[0]) => {
         setSelectedCategory(category)
         setDeleteDialogOpen(true)
@@ -257,36 +239,91 @@ export default function CategoriesPage() {
     }
 
     const handleViewPosts = (categoryId: string) => {
-        navigate(`/dashboard/posts?categoryId=${categoryId}`)
+        navigate(`/admin/posts?categoryId=${categoryId}`)
     }
 
-    const handleSaveEdit = () => {
-        // In a real app, you would make an API call to update the category
-        console.log(`Saving edited category: ${JSON.stringify(categoryForm)}`)
+    const handleSaveEdit = async () => {
+        try {
+            const res = await updateCategory(selectedCategory?.id, {
+                name: categoryForm.name,
+                slug: categoryForm.slug,
+                description: categoryForm.description,
+                parentId: categoryForm.parentId,
+                active: categoryForm.active
+            })
+            setCategories((prev) =>
+                prev.map((cat) => (cat.id === selectedCategory?.id ? { ...cat, ...categoryForm } : cat)),
+            )
+            toast.success("Category updated successfully")
+        } catch (error) {
+            toast.error(`Error updating category: ${error.message}`)
+        }
+
         setEditDialogOpen(false)
     }
+    const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
 
-    const handleDeleteConfirm = () => {
-        // In a real app, you would make an API call to delete the category
-        console.log(`Deleting category ${selectedCategory?.id}`)
-        setDeleteDialogOpen(false)
+            const value = parseInt(e.currentTarget.value, 10)
+            if (!isNaN(value) && value > 0 && value <= totalPages.current) {
+                setCurrentPage(value - 1)
+                currentPageInputRef.current.value = (currentPage + 1).toString()
+            } else {
+                currentPageInputRef.current.value = (currentPage + 1).toString()
+            }
+        }
+
+
+    }
+    const handlePageInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+
+        currentPageInputRef.current.value = (currentPage + 1).toString()
+    }
+    const handleDeleteConfirm = async () => {
+        try {
+            const res = await deleteCategory(selectedCategory?.id)
+            await updateCategories()
+            toast.success("Category deleted successfully")
+            console.log(`Deleting category ${selectedCategory?.id}`)
+        } catch (error) {
+            console.error("Error deleting category:", error)
+            toast.error("Failed to delete category: " + error.message)
+        } finally {
+            setDeleteDialogOpen(false)
+        }
     }
 
-    const handleCreateCategory = () => {
+    const handleCreateCategory = async () => {
         // In a real app, you would make an API call to create the category
+        try {
+            if (isValidSlug(categoryForm.slug) == false) {
+                categoryForm.slug = ''
+                toast.error("Slug không hợp lệ")
+                return
+            }
+            const data = await createCategory({
+                name: categoryForm.name,
+                slug: categoryForm.slug,
+                description: categoryForm.description,
+                parentId: categoryForm.parentId,
+                active: categoryForm.active,
+            })
+            toast.success("Tạo danh mục thành công")
+            updateCategories()
+
+        } catch (error) {
+            toast.error("Error creating category:" + error.message)
+        }
         console.log(`Creating new category: ${JSON.stringify(categoryForm)}`)
         setNewCategoryDialogOpen(false)
         // Reset form
         setCategoryForm({
+            id: "",
             name: "",
             slug: "",
             description: "",
             parentId: "",
-            status: "published",
-            metaTitle: "",
-            metaDescription: "",
-            featuredImage: "",
-            publishDate: new Date(),
+            active: true
         })
     }
 
@@ -296,27 +333,15 @@ export default function CategoriesPage() {
         )
     }
 
-    const renderCategoryRow = (category: (typeof categories)[0], level = 0) => {
-        const isExpanded = expandedCategories.includes(category.id)
-        const hasChildren = getChildCategories(category.id).length > 0
+    const renderCategoryRow = (category) => {
 
         return (
             <React.Fragment key={category.id}>
-                <TableRow className={cn(level > 0 && "bg-muted/30")}>
+                <TableRow >
                     <TableCell className="font-medium">
                         <div className="flex items-center">
-                            <div style={{ width: `${level * 20}px` }} />
-                            {hasChildren && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-5 w-5 mr-1"
-                                    onClick={() => toggleExpandCategory(category.id)}
-                                >
-                                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                </Button>
-                            )}
-                            {!hasChildren && <div className="w-6" />}
+
+                            <div className="w-6" />
                             {category.name}
                         </div>
                     </TableCell>
@@ -326,13 +351,14 @@ export default function CategoriesPage() {
                             <div
                                 className={cn(
                                     "h-2 w-2 rounded-full mr-2",
-                                    category.status === "published" ? "bg-green-500" : "bg-amber-500",
+                                    category.active ? "bg-green-500" : "bg-amber-500",
                                 )}
                             />
-                            {category.status === "published" ? "Hiển thị" : "Bản nháp"}
+                            {category.active ? "Published" : "Draft"}
                         </div>
                     </TableCell>
-                    <TableCell>{getCategoryById(category.parentId)?.name || "—"}</TableCell>
+                    <TableCell>{category.parentName || "—"}</TableCell>
+                    <TableCell>{new Date(category.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2">
                             <Button variant="ghost" size="sm" onClick={() => handleEditClick(category)}>
@@ -347,14 +373,14 @@ export default function CategoriesPage() {
                                 <Eye className="h-4 w-4" />
                                 <span className="sr-only">Chi tiết</span>
                             </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleViewPost(category)}>
+                                <StickyNote className="h-4 w-4" />
+                                <span className="sr-only">Xem bài viết</span>
+                            </Button>
                         </div>
                     </TableCell>
                 </TableRow>
 
-                {/* Render children if expanded */}
-                {isExpanded &&
-                    hasChildren &&
-                    getChildCategories(category.id).map((child) => renderCategoryRow(child, level + 1))}
             </React.Fragment>
         )
     }
@@ -374,20 +400,44 @@ export default function CategoriesPage() {
         setNewCategoryDialogOpen(true)
     }
 
+
+    // Handle double click to edit page dialog
+    const [isEditable, setIsEditable] = useState(false);
+    const lastClickTime = useRef(0);
+    const handleClick = () => {
+        const now = Date.now();
+        if (now - lastClickTime.current < 300) {
+            // Nếu click lần 2 trong vòng 300ms => cho phép chỉnh sửa
+            setIsEditable(true);
+
+        }
+        lastClickTime.current = now;
+    };
+    const getSortIcon = (key: string) => {
+        if (sortBy.includes(key)) {
+            if (sortBy.includes('-')) {
+                return <ArrowDownIcon onClick={() => setSortBy(key)} className="h-4 w-4" />;
+            } else {
+                return <ArrowUpIcon onClick={() => setSortBy('-' + key)} className="h-4 w-4" />;
+            }
+        }
+        return <ArrowDownUp onClick={() => setSortBy(key)} className="h-4 w-4 opacity-50" />;
+    };
     return (
         <div className="flex flex-col gap-4">
+
             <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">Danh mục</h2>
+                <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
                 <Button onClick={openNewCategoryDialog}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Thêm danh mục
+                    Add Category
                 </Button>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Quản lý danh mục</CardTitle>
-                    <CardDescription>Xem, thêm, sửa và xóa danh mục bài viết.</CardDescription>
+                    <CardTitle>Categories management</CardTitle>
+                    <CardDescription>View, add, edit, and delete post categories.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-col gap-4">
@@ -395,7 +445,8 @@ export default function CategoriesPage() {
                             <div className="flex items-center gap-2 flex-1">
                                 <Search className="h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Tìm kiếm danh mục..."
+
+                                    placeholder="Search categories..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="max-w-md"
@@ -405,58 +456,58 @@ export default function CategoriesPage() {
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <div className="flex items-center gap-2">
                                     <Label htmlFor="status-filter" className="whitespace-nowrap">
-                                        Trạng thái:
+                                        Status:
                                     </Label>
                                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                                         <SelectTrigger id="status-filter" className="w-[140px]">
-                                            <SelectValue placeholder="Tất cả" />
+                                            <SelectValue placeholder="All" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">Tất cả</SelectItem>
-                                            <SelectItem value="published">Hiển thị</SelectItem>
-                                            <SelectItem value="draft">Bản nháp</SelectItem>
+                                            <SelectItem value="all">All</SelectItem>
+                                            <SelectItem value="published">Published</SelectItem>
+                                            <SelectItem value="draft">Draft</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    <Label htmlFor="parent-filter" className="whitespace-nowrap">
-                                        Danh mục cha:
-                                    </Label>
-                                    <Select value={parentFilter} onValueChange={setParentFilter}>
-                                        <SelectTrigger id="parent-filter" className="w-[180px]">
-                                            <SelectValue placeholder="Tất cả" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Tất cả</SelectItem>
-                                            <SelectItem value="none">Không có danh mục cha</SelectItem>
-                                            {categories
-                                                .filter((cat) => cat.level === 0)
-                                                .map((cat) => (
-                                                    <SelectItem key={cat.id} value={cat.id}>
-                                                        {cat.name}
-                                                    </SelectItem>
-                                                ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
                             </div>
                         </div>
 
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Tên</TableHead>
-                                    <TableHead>Slug</TableHead>
-                                    <TableHead>Trạng thái</TableHead>
-                                    <TableHead>Danh mục cha</TableHead>
-                                    <TableHead>Thao tác</TableHead>
+                                    <TableHead>
+                                        <div className="flex items-center gap-1">
+                                            Category name
+                                            {getSortIcon('name')}
+                                        </div></TableHead>
+                                    <TableHead>
+                                        <div className="flex items-center gap-1">
+                                            Slug
+                                            {getSortIcon('slug')}
+                                        </div></TableHead>
+                                        <TableHead>
+                                        <div className="flex items-center gap-1">
+                                            Status
+                                            {getSortIcon('active')}
+                                        </div></TableHead>
+                                        <TableHead>
+                                        <div className="flex items-center gap-1">
+                                            Parent Category
+                                            {getSortIcon('parentCategory.name')}
+                                        </div></TableHead>
+                                        <TableHead>
+                                        <div className="flex items-center gap-1">
+                                            Created at
+                                            {getSortIcon('createdAt')}
+                                        </div></TableHead>
+                                    <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {rootCategories.map((category) => renderCategoryRow(category))}
+                                {categories.map((category) => renderCategoryRow(category))}
 
-                                {rootCategories.length === 0 && (
+                                {categories.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
                                             Không tìm thấy danh mục nào
@@ -465,26 +516,82 @@ export default function CategoriesPage() {
                                 )}
                             </TableBody>
                         </Table>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <DropdownMenu>
+                                    <Label className=" whitespace-nowrap">Items per page:</Label>
 
-                        <Pagination>
-                            <PaginationContent>
-                                <PaginationItem>
-                                    <PaginationPrevious />
-                                </PaginationItem>
-                                <PaginationItem>
-                                    <PaginationLink isActive>1</PaginationLink>
-                                </PaginationItem>
-                                <PaginationItem>
-                                    <PaginationLink>2</PaginationLink>
-                                </PaginationItem>
-                                <PaginationItem>
-                                    <PaginationEllipsis />
-                                </PaginationItem>
-                                <PaginationItem>
-                                    <PaginationNext />
-                                </PaginationItem>
-                            </PaginationContent>
-                        </Pagination>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="w-full">
+                                            {pageLimit}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+
+                                    <DropdownMenuContent align="end">
+                                        {[5, 10, 20, 50].map((item) => (
+                                            <DropdownMenuItem key={item} onClick={() => setPageLimit(item)}>
+                                                {item}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            <div className="flex items-center justify-center gap-2">
+                                <div className="flex items-center gap-2">
+
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(0)}
+                                        disabled={currentPage === 0}
+                                    >
+                                        <ChevronsLeft className="h-4 w-4" />
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(Math.min(currentPage - 1, totalPages.current - 1))}
+                                        disabled={currentPage === 0}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center">
+                                            <Input
+
+                                                ref={currentPageInputRef}
+                                                className="w-16 h-9 text-center"
+                                                onKeyDown={handlePageInputKeyDown}
+                                                onBlur={handlePageInputBlur}
+                                            />
+                                            <span className="text-sm mx-2">/ {totalPages.current}</span>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages.current - 1))}
+                                        disabled={currentPage === totalPages.current - 1}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(totalPages.current - 1)}
+                                        disabled={currentPage === totalPages.current - 1}
+                                        aria-label="Trang cuối cùng"
+                                    >
+                                        <ChevronsRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+
+                            </div>
+                        </div>
+
+
                     </div>
                 </CardContent>
             </Card>
@@ -499,30 +606,28 @@ export default function CategoriesPage() {
                     }
                 }}
             >
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className=" max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>{editDialogOpen ? "Sửa danh mục" : "Thêm danh mục mới"}</DialogTitle>
+                        <DialogTitle>{editDialogOpen ? "Edit Category" : "Add New Category"}</DialogTitle>
                         <DialogDescription>
-                            {editDialogOpen ? "Cập nhật thông tin danh mục." : "Thêm danh mục mới để tổ chức bài viết."}
+                            {editDialogOpen ? "Update category information." : "Add a new category to organize posts."}
                         </DialogDescription>
                     </DialogHeader>
 
                     <Tabs defaultValue="basic">
-                        <TabsList className="grid w-full grid-cols-2">
+                        <TabsList className="grid w-full grid-cols-1">
                             <TabsTrigger value="basic">Thông tin cơ bản</TabsTrigger>
-                            {/* <TabsTrigger value="seo">SEO</TabsTrigger> */}
-                            <TabsTrigger value="advanced">Nâng cao</TabsTrigger>
                         </TabsList>
 
                         {/* Basic Information Tab */}
                         <TabsContent value="basic" className="space-y-4 py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Tên danh mục</Label>
+                                <Label htmlFor="name">Category Name</Label>
                                 <Input
                                     id="name"
                                     value={categoryForm.name}
                                     onChange={(e) => handleFormChange("name", e.target.value)}
-                                    placeholder="Nhập tên danh mục"
+                                    placeholder="Enter category name"
                                 />
                             </div>
 
@@ -532,149 +637,69 @@ export default function CategoriesPage() {
                                     id="slug"
                                     value={categoryForm.slug}
                                     onChange={(e) => handleFormChange("slug", e.target.value)}
-                                    placeholder="ten-danh-muc"
+                                    placeholder="category-name"
                                 />
-                                <p className="text-xs text-muted-foreground">Slug sẽ được sử dụng trong URL của danh mục.</p>
+                                <p className="text-xs text-muted-foreground">The slug will be used in the category's URL.</p>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="description">Mô tả</Label>
+                                <Label htmlFor="description">Description</Label>
                                 <Textarea
                                     id="description"
                                     value={categoryForm.description}
                                     onChange={(e) => handleFormChange("description", e.target.value)}
-                                    placeholder="Nhập mô tả ngắn về danh mục"
+                                    placeholder="Enter a short description of the category"
                                     rows={3}
                                 />
                             </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="parent">Danh mục cha</Label>
-                                <Select value={categoryForm.parentId} onValueChange={(value) => handleFormChange("parentId", value)}>
-                                    <SelectTrigger id="parent">
-                                        <SelectValue placeholder="Chọn danh mục cha (nếu có)" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">Không có danh mục cha</SelectItem>
-                                        {categories
-                                            .filter((cat) => !editDialogOpen || cat.id !== selectedCategory?.id)
-                                            .map((cat) => (
-                                                <SelectItem key={cat.id} value={cat.id}>
-                                                    {"—".repeat(cat.level)} {cat.name}
-                                                </SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-muted-foreground">Chọn danh mục cha để xây dựng cấu trúc phân cấp.</p>
-                            </div>
-
-                            <div className="space-y-2">
-                                {/* <div className="flex items-center justify-between">
-                                    <Label htmlFor="featured-image">Ảnh đại diện</Label>
-                                    <Button variant="outline" size="sm">
-                                        <ImageIcon className="mr-2 h-4 w-4" />
-                                        Tải ảnh lên
-                                    </Button>
-                                </div> */}
-                                {/* {categoryForm.featuredImage ? (
-                                    <div className="relative w-full h-40 rounded-md overflow-hidden border">
-                                        <img
-                                            src={categoryForm.featuredImage || "/placeholder.svg"}
-                                            alt="Featured"
-                                            className="w-full h-full object-cover"
-                                        />
-                                        <Button
-                                            variant="destructive"
-                                            size="icon"
-                                            className="absolute top-2 right-2 h-6 w-6"
-                                            onClick={() => handleFormChange("featuredImage", "")}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="w-full h-40 rounded-md border flex items-center justify-center bg-muted/50">
-                                        <div className="text-center text-muted-foreground">
-                                            <ImageIcon className="mx-auto mb-2 h-8 w-8" />
-                                            <p>Kéo thả ảnh vào đây hoặc nhấp để chọn</p>
-                                            <p className="text-xs">Kích thước khuyến nghị: 1200x630px</p>
-                                        </div>
-                                    </div>
-                                )} */}
-                            </div>
-                        </TabsContent>
-
-
-                        {/* Advanced Tab */}
-                        <TabsContent value="advanced" className="space-y-4 py-4">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <Label htmlFor="status">Trạng thái</Label>
-                                    <p className="text-sm text-muted-foreground">Hiển thị hoặc ẩn danh mục trên trang web</p>
-                                </div>
-                                <Switch
-                                    id="status"
-                                    checked={categoryForm.status === "published"}
-                                    onCheckedChange={(checked) => handleFormChange("status", checked ? "published" : "draft")}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="publish-date">Thời gian hiển thị</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                                            <Calendar className="mr-2 h-4 w-4" />
-                                            {categoryForm.publishDate ? (
-                                                format(categoryForm.publishDate, "dd/MM/yyyy")
-                                            ) : (
-                                                <span>Chọn ngày</span>
-                                            )}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <CalendarComponent
-                                            mode="single"
-                                            selected={categoryForm.publishDate}
-                                            onSelect={(date) => handleFormChange("publishDate", date || new Date())}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                <p className="text-xs text-muted-foreground">Thiết lập thời gian hiển thị danh mục trên trang web.</p>
-                            </div>
-
-                            {/* <div className="space-y-2 border-t pt-4 mt-4">
-                                <h4 className="font-medium">Xử lý khi xóa danh mục</h4>
+                            <div className="flex items-start gap-2">
                                 <div className="space-y-2">
-                                    <div className="flex items-center space-x-2">
-                                        <input type="radio" id="delete-move" name="delete-action" className="h-4 w-4" defaultChecked />
-                                        <Label htmlFor="delete-move">Di chuyển bài viết và danh mục con sang danh mục khác</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <input type="radio" id="delete-with-children" name="delete-action" className="h-4 w-4" />
-                                        <Label htmlFor="delete-with-children">Xóa cả danh mục con và bài viết liên quan</Label>
-                                    </div>
+                                    <Label htmlFor="parent">Parent Category</Label>
+                                    <Select value={categoryForm.parentId ? categoryForm.parentId : 'none'} onValueChange={(value) => handleFormChange("parentId", value)}>
+                                        <SelectTrigger id="parent">
+                                            <SelectValue placeholder="Select parent category (if any)" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">No parent category</SelectItem>
+                                            {categories
+                                                .map((cat) => (
+                                                    <SelectItem key={cat.id} value={cat.id}>
+                                                        {"—".repeat(cat.level)} {cat.name}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    <p className="text-xs text-muted-foreground">Select a parent category to build a hierarchical structure.</p>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Lựa chọn cách xử lý danh mục con và bài viết khi xóa danh mục này.
-                                </p>
-                            </div> */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="active">Active</Label>
+                                    <Switch
+                                        id="active"
+                                        checked={categoryForm.active}
+                                        onCheckedChange={(checked) => handleFormChange("active", checked)}
+                                    />
+                                </div>
+                            </div>
+
+
                         </TabsContent>
+
+
                     </Tabs>
 
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            onClick={() => {
+                            onClick={(e) => {
                                 setNewCategoryDialogOpen(false)
                                 setEditDialogOpen(false)
                             }}
                         >
-                            Hủy
+                            Cancel
                         </Button>
                         <Button onClick={editDialogOpen ? handleSaveEdit : handleCreateCategory}>
-                            {editDialogOpen ? "Lưu thay đổi" : "Tạo danh mục"}
+                            {editDialogOpen ? "Save change" : "Create category"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -684,10 +709,10 @@ export default function CategoriesPage() {
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Xác nhận xóa</DialogTitle>
+                        <DialogTitle>Confirm Deletion</DialogTitle>
                         <DialogDescription>
-                            Bạn có chắc chắn muốn xóa danh mục "{selectedCategory?.name}"? Hành động này không thể hoàn tác và sẽ ảnh
-                            hưởng đến tất cả bài viết trong danh mục này.
+                            Are you sure you want to delete the category "{selectedCategory?.name}"? This action cannot be undone and will
+                            affect all posts in this category.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -705,8 +730,8 @@ export default function CategoriesPage() {
             <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>Chi tiết danh mục</DialogTitle>
-                        <DialogDescription>Thông tin chi tiết về danh mục "{selectedCategory?.name}".</DialogDescription>
+                        <DialogTitle>Category Details</DialogTitle>
+                        <DialogDescription>Detailed information about the category "{selectedCategory?.name}".</DialogDescription>
                     </DialogHeader>
 
                     {selectedCategory && (
@@ -744,69 +769,24 @@ export default function CategoriesPage() {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
                                 <div>
-                                    <h4 className="text-sm font-medium">Thông tin cơ bản</h4>
+                                    <h4 className="text-sm font-medium">Basic Information</h4>
                                     <dl className="mt-2 space-y-1">
                                         <div className="flex justify-between">
                                             <dt className="text-sm text-muted-foreground">ID:</dt>
                                             <dd className="text-sm font-medium">{selectedCategory.id}</dd>
                                         </div>
                                         <div className="flex justify-between">
-                                            <dt className="text-sm text-muted-foreground">Số bài viết:</dt>
-                                            <dd className="text-sm font-medium">{selectedCategory.postCount}</dd>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <dt className="text-sm text-muted-foreground">Danh mục cha:</dt>
-                                            <dd className="text-sm font-medium">{getCategoryById(selectedCategory.parentId)?.name || "—"}</dd>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <dt className="text-sm text-muted-foreground">Cấp độ:</dt>
-                                            <dd className="text-sm font-medium">{selectedCategory.level}</dd>
+                                            <dt className="text-sm text-muted-foreground">Parent Category: {selectedCategory.parentName ? selectedCategory.parentName : '__'}</dt>
                                         </div>
                                     </dl>
                                 </div>
 
-                                <div>
-                                    <h4 className="text-sm font-medium">Thời gian</h4>
-                                    <dl className="mt-2 space-y-1">
-                                        <div className="flex justify-between">
-                                            <dt className="text-sm text-muted-foreground">Ngày tạo:</dt>
-                                            <dd className="text-sm font-medium">
-                                                {format(new Date(selectedCategory.createdAt), "dd/MM/yyyy HH:mm")}
-                                            </dd>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <dt className="text-sm text-muted-foreground">Cập nhật lần cuối:</dt>
-                                            <dd className="text-sm font-medium">
-                                                {format(new Date(selectedCategory.updatedAt), "dd/MM/yyyy HH:mm")}
-                                            </dd>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <dt className="text-sm text-muted-foreground">Ngày xuất bản:</dt>
-                                            <dd className="text-sm font-medium">
-                                                {format(new Date(selectedCategory.publishDate), "dd/MM/yyyy HH:mm")}
-                                            </dd>
-                                        </div>
-                                    </dl>
-                                </div>
                             </div>
 
-                            <div className="border-t pt-4">
-                                <h4 className="text-sm font-medium">SEO</h4>
-                                <dl className="mt-2 space-y-2">
-                                    <div>
-                                        <dt className="text-sm text-muted-foreground">Meta Title:</dt>
-                                        <dd className="text-sm">{selectedCategory.metaTitle}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-sm text-muted-foreground">Meta Description:</dt>
-                                        <dd className="text-sm">{selectedCategory.metaDescription}</dd>
-                                    </div>
-                                </dl>
-                            </div>
 
                             <div className="flex justify-between border-t pt-4">
                                 <Button variant="outline" onClick={() => handleViewPosts(selectedCategory.id)}>
-                                    Xem bài viết
+                                    View Posts
                                 </Button>
                                 <div className="space-x-2">
                                     <Button
@@ -816,7 +796,7 @@ export default function CategoriesPage() {
                                             handleEditClick(selectedCategory)
                                         }}
                                     >
-                                        Sửa
+                                        Edit
                                     </Button>
                                     <Button
                                         variant="destructive"
@@ -825,7 +805,7 @@ export default function CategoriesPage() {
                                             handleDeleteClick(selectedCategory)
                                         }}
                                     >
-                                        Xóa
+                                        Delete
                                     </Button>
                                 </div>
                             </div>
@@ -835,4 +815,8 @@ export default function CategoriesPage() {
             </Dialog>
         </div>
     )
+}
+function isValidSlug(slug: string): boolean {
+    const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+    return slugRegex.test(slug);
 }

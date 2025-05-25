@@ -5,23 +5,48 @@ import { Search } from "lucide-react"
 
 
 
-export type UserRegisterRequest = {
-    fullname: string,
-    username: string,
-    password: string,
-    mail: string,
+export async function signupUser({
+
+    username, password, firstName, lastName, email
+}: {
+    username: string
+    password: string
+    firstName: string
+    lastName: string
+    email: string
+
+}) {
+    try {
+        const res = await axios.post(`${baseUrl}/users`, {
+            username: username,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            mail: email
+
+        })
+        if (res.data.code === 1000) {
+            return res.data.result
+        }
+        throw Error(res.data.message)
+    } catch (error) {
+        console.error('Error signup user')
+        throw error
+    }
 }
 
 export async function fetchUsers({
     page = 0,
     limit = 10,
     sortBy = 'id',
-    searchBy
+    searchBy,
+    role
 }: {
     page?: number,
     limit?: number,
     searchBy?: string,
-    sortBy?: string
+    sortBy?: string,
+    role?: string
 
 }) {
     try {
@@ -31,7 +56,8 @@ export async function fetchUsers({
                 page: page,
                 limit: limit,
                 sortBy: sortBy,
-                search: searchBy
+                search: searchBy,
+                role: role
             },
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -142,6 +168,49 @@ export async function changePassword({
         throw Error()
     } catch (error) {
         console.error('Error change password')
+        throw error
+    }
+}
+
+export async function uploadUserAvatar(username: string = 'me', file: File) {
+    try {
+        const token = localStorage.getItem('token')
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await axios.post(`${baseUrl}/users/${username}/avatar`, formData, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+        if (res.data.code === 1000) {
+            return res.data.result
+        }
+        throw Error()
+    } catch (error) {
+        console.error('Error uploading user avatar')
+        throw error
+    }
+}
+
+export const udpateUserRole = async (username: string, role: string) => {
+    try {
+        const res = await axios.put(`${baseUrl}/users/${username}/roles`, {
+            roleName: role
+        }, {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+            validateStatus: (status) => {
+                return status < 500
+            }
+        })
+        if (res.data.code === 1000) {
+            return res.data.result
+        }
+        throw new Error(res.data.message)
+    } catch (error) {
+        console.error('Error update user role')
         throw error
     }
 }

@@ -1,19 +1,25 @@
 import { getTokenInfo, introspect, login } from "@/service/AuthApi";
-import { useContext, createContext, useState, ReactNode } from "react";
+import { useContext, createContext, useState, ReactNode, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 type UserInfo = {
     username: string,
-    role: 'ROLE_ADMIN' |'ROLE_USER'| 'ROLE_MODERATOR' | 'GUEST'
+    role: 'ROLE_ADMIN' | 'ROLE_USER' | 'ROLE_MODERATOR' | 'GUEST'
 }
 const AuthContext = createContext<{
     userInfo: UserInfo
     token: string,
-    loginAction:  (username: string, password: string) => Promise<boolean>,
+    loginAction: (username: string, password: string) => Promise<boolean>,
     logout: () => void,
-    verifyToken : () => Promise<boolean>
-} >();
+    verifyToken: () => Promise<boolean>,
+    isLoading: boolean
+}>();
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+
+    const [isLoading, setIsLoading] = useState(true)
+    useEffect(() => {
+        verifyToken()
+    }, [])
     const initUserInfo: UserInfo = {
         username: '',
         role: 'GUEST'
@@ -47,6 +53,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const verifyToken = async () => {
+        setIsLoading(true)
         const token = localStorage.getItem('token') || ''
         const res = await introspect(token)
         if (res.valid) {
@@ -62,9 +69,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setUserInfo(initUserInfo)
             localStorage.removeItem('token')
         }
+        setIsLoading(false)
         return res.valid
     }
-    const value = {userInfo, token, loginAction, logout, verifyToken}
+
+
+    const value = { userInfo, token, loginAction, logout, verifyToken, isLoading }
+
+
 
     return (
         <AuthContext.Provider value={value}>

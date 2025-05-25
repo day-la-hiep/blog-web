@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ArrowLeftFromLine, BookOpen, BookUp, Edit3, ImageIcon, Loader2, LogOut, Menu, Save, Send, User, X } from "lucide-react"
@@ -15,7 +14,7 @@ import "react-markdown-editor-lite/lib/index.css";
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { createPost, fetchDetailPage, submitForApproval, unsubmitPost, updatePost, uploadPostImage, uploadPostThumbnail } from "@/service/PostApi"
+import { createPost, fetchDetailPage, submitForApproval, unsubmitPost, updatePost, uploadPostImage, uploadPostThumbnail, importArticleContent, fetchPostsByUsername } from "@/service/PostApi"
 import MarkdownIt from "markdown-it";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -28,6 +27,7 @@ import { ThumbnailData, ThumbnailUploader, ThumbnailUploaderRef } from "./thumbn
 import { Progress } from "@/components/ui/progress";
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-light.css';// Mock data for a single post
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -39,7 +39,7 @@ const PostFormSchema = z.object({
   status: z.enum(["DRAFT", "DONE", "PENDING"]),
   approvedStatus: z.enum(["ACCEPTED", "REJECTED", "NONE"]),
   categoryIds: z.array(z.string()),
-  thumbnailUrl: z.string().optional(),
+  thumbnailUrl: z.string().optional().nullable(),
 })
 
 type PostForm = z.infer<typeof PostFormSchema>
@@ -60,7 +60,6 @@ export default function EditPost() {
   const [isSubmitttingToAdmin, setIsSubmittingToAdmin] = useState(true)
   const [isFormEditable, setIsFormEditable] = useState(true)
   const { postId } = useParams()
-  const [content, setContent] = useState("")
   const [open, setOpen] = useState(false)
   const editorRef = React.useRef<Editor>(undefined)
   const imageArticleInputRef = useRef<HTMLInputElement>(null);
@@ -71,8 +70,8 @@ export default function EditPost() {
     name: string,
     status: boolean,
     slug: string
-  }[]>(mockCategories)
-  const { register, handleSubmit, formState: { errors, isSubmitting }, getValues, setValue, watch } = useForm<PostForm>({
+  }[]>([])
+  const { register, handleSubmit, formState: { errors, isSubmitting }, getValues, setValue, watch, trigger } = useForm<PostForm>({
     resolver: zodResolver(PostFormSchema),
     defaultValues: {
       title: "",
@@ -82,6 +81,7 @@ export default function EditPost() {
       categoryIds: [],
       status: undefined,
       approvedStatus: undefined,
+      thumbnailUrl: "",
     },
   })
   const [selectedCategories, setSelectedCategories] = useState<{
@@ -91,9 +91,22 @@ export default function EditPost() {
     slug: string,
 
   }[]>([])
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [userPosts, setUserPosts] = useState<any[]>([])
+  const [importLoading, setImportLoading] = useState(false)
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null)
 
-  const onSavePost = async (data: PostForm) => {
+  const onSavePost = async () => {
+    const data = getValues()
     setValue("content", editorRef.current?.getMdValue() || "")
+    const isValid = await trigger()
+    if (isValid == false) {
+      toast.error("Please fill in all required fields")
+      for (error in errors) {
+        console.log(error.message)
+      }
+      return
+    }
     const res = await updatePost(postId, {
       title: data.title,
       name: data.name,
@@ -207,23 +220,68 @@ export default function EditPost() {
     }
   }
   const handleImageInsert = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    setIsInsertImage(true)
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error("File size exceeds 5MB");
+    try {
+      setIsInsertImage(true)
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error("File size exceeds 5MB");
+        setIsInsertImage(false)
+        return;
+      }
+      const res = await uploadPostImage(postId, file);
+
+      const alt = file.name.split(".")[0];
+      const markdownImageSyntax = `![${alt}](${res.url})`;
+
+      // Chèn syntax vào editor tại vị trí con trỏ
+      editorRef.current?.insertText(markdownImageSyntax);
       setIsInsertImage(false)
-      return;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Image upload failed");
+    } finally {
+      setIsInsertImage(false)
+
     }
-    const res = await uploadPostImage(postId, file);
 
-    const alt = file.name.split(".")[0];
-    const markdownImageSyntax = `![${alt}](${res.url})`;
-
-    // Chèn syntax vào editor tại vị trí con trỏ
-    editorRef.current?.insertText(markdownImageSyntax);
-    setIsInsertImage(false)
   }
+
+  const openImportDialog = async () => {
+    setImportDialogOpen(true)
+    // Lấy danh sách bài viết khác của user
+    const res = await fetchPostsByUsername('me', { limit: 100 })
+    if (res) {
+      setUserPosts(res.items.filter((p: any) => p.id !== postId))
+    }
+  }
+
+  const handleImport = async () => {
+    if (!postId || !selectedSourceId) return
+    setImportLoading(true)
+    try {
+      await importArticleContent(postId as string, selectedSourceId, localStorage.getItem('token') || '')
+      toast.success('Import thành công!')
+      setImportDialogOpen(false)
+      setSelectedSourceId(null)
+      // Reload lại nội dung bài viết
+      let res = await fetchDetailPage(postId as string)
+      setValue("title", res.title)
+      setValue("name", res.name)
+      setValue("summary", res.summary)
+      setValue("content", res.content)
+      setValue("categoryIds", res.categoryIds)
+      setValue("status", res.status)
+      setValue("approvedStatus", res.approvedStatus)
+      setValue("thumbnailUrl", res.thumbnailUrl)
+      editorRef.current?.setText(res.content)
+    } catch {
+      toast.error('Import thất bại!')
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   return <>
 
     <div className="w-full flex-1 flex flex-col items-center ">
@@ -241,7 +299,7 @@ export default function EditPost() {
               </div>
               <div className="flex items-center gap-2">
                 <Button className="p-2" variant={"ghost"} onClick={() => navigate(-1)}><ArrowLeftFromLine></ArrowLeftFromLine></Button>
-
+                <Button disabled={!isFormEditable} variant="default" onClick={openImportDialog}>Import</Button>
                 <Label htmlFor="title" className="text-muted-foreground text-lg">Status: </Label>
                 <Badge
                   className={
@@ -256,198 +314,191 @@ export default function EditPost() {
               </div>
             </div>
 
-            <form onSubmit={(e) => {
-              setValue('content', editorRef.current?.getMdValue() || "")
-              handleSubmit(onSavePost)(e)
-
-            }} className="space-y-4">
-              {errors.categoryIds && <p className="text-red-500">{errors.categoryIds.message}</p>}
-              <div className="flex flex-col gap-4 container">
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="space-y-2 ">
-                    <Label htmlFor="title">Title</Label>
-                    <Input
-                      disabled={!isFormEditable}
-                      id="title"
-                      placeholder="Enter the title of your post"
-                      {...register("title")}
-                    />
-                    {errors.title && <p className="text-red-500">{errors.title.message}</p>}
-
-                  </div>
-                  <div className="space-y-2 ">
-                    <Label htmlFor="name">Name</Label>
-                    <Input
-                      disabled={!isFormEditable}
-
-                      id="name"
-                      placeholder="Enter the name of your post"
-                      {...register("name")}
-                    />
-                    {errors.name && <p className="text-red-500">{errors.name.message}</p>}
-
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="flex flex-col space-y-2">
-                    <Label htmlFor="summary">Summary</Label>
-                    <Textarea
-                      className="h-full"
-                      disabled={!isFormEditable}
-
-                      id="summary"
-                      placeholder="Write a brief summary of your post"
-                      {...register("summary")}
-                    />
-                    {errors.summary && <p className="text-red-500">{errors.summary.message}</p>}
-
-                  </div>
-                  <div className="space-y-2 gap-4 w-full max-w-md">
-                    <label className="text-sm font-medium">Thể loại bài viết</label>
-
-                    <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger disabled={!isFormEditable} asChild>
-                        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-                          Select categories
-                          <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                            {selectedCategories.length}
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
-                        <Command>
-                          <CommandInput placeholder="Tìm thể loại..." />
-                          <CommandList>
-                            <CommandEmpty>Không tìm thấy thể loại.</CommandEmpty>
-                            <CommandGroup>
-                              {categories.map((category) => {
-                                const isSelected = selectedCategories.some((item) => item.id === category.id)
-                                return (
-                                  <CommandItem
-                                    key={category.id}
-                                    value={category.id}
-                                    onSelect={() => handleSelectCategories(category)}
-                                  // className={cn("flex items-center gap-2", isSelected && "bg-primary/10")}
-                                  >
-                                    <span>{category.name}</span>
-                                    {isSelected && <span className="ml-auto text-primary">✓</span>}
-                                  </CommandItem>
-                                )
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-
-                    {selectedCategories.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {selectedCategories.map((category) => (
-                          <Badge key={category.id} variant="secondary" className="flex items-center gap-1">
-                            {category.name}
-                            <Button
-                              disabled={!isFormEditable}
-                              variant="ghost"
-                              size="icon"
-                              className="h-4 w-4 p-0 hover:bg-transparent"
-                              onClick={() => handleRemoveCategories(category.id)}
-                            >
-                              <X className="h-3 w-3" />
-                              <span className="sr-only">Xóa {category.name}</span>
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <ThumbnailUploader
-                  key={watch("thumbnailUrl")}
-                  disabled={!isFormEditable}
-                  defaultImage={watch('thumbnailUrl')} onUploadThumbnail={uploadThumbnail} />
-
-
-                <div className="space-y-2 flex flex-col items-center">
-                  <div className="flex gap-5 w-full items-center">
-                    <Label htmlFor="content" className="text-xl font-medium">Content</Label>
-                    <Button
-                      type="button"
-
-                      className={cn(
-                        "h-8 w-8 p-0 rounded-md",
-                        isInsertImage
-                          ? "bg-muted text-muted-foreground cursor-wait"
-                          : "bg-transparent hover:bg-accent"
-                      )}
-                      disabled={isInsertImage}
-                      onClick={() => {
-                        imageArticleInputRef.current?.click();
-                      }}
-                      title="Insert image"
-                    >
-                      {isInsertImage ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ImageIcon className="h-4 w-4 text-black" />
-                      )}
-                    </Button>
-
-
-
-                  </div>
-                  <div className="container flex justify-center items-center">
-
-                    <Editor
-                      ref={editorRef}
-                      defaultValue={getValues('content')}
-                      key={isFormEditable ? "editable" : "readonly"} // ⚠️ thêm dòng này
-                      view={{
-                        menu: isFormEditable,
-                        md: isFormEditable,
-                        html: true,
-                      }}
-                      readOnly={!isFormEditable}
-                      style={{ height: "800px" }}
-                      className="w-full"
-                      renderHTML={text => md.render(text)}
-
-                    />
-
-
-
-
-                  </div>
-                  {errors.content && <p className="text-red-500">{errors.content.message}</p>}
+            {errors.categoryIds && <p className="text-red-500">{errors.categoryIds.message}</p>}
+            <div className="flex flex-col gap-4 container">
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2 ">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    disabled={!isFormEditable}
+                    id="title"
+                    placeholder="Enter the title of your post"
+                    {...register("title")}
+                  />
+                  {errors.title && <p className="text-red-500">{errors.title.message}</p>}
 
                 </div>
+                <div className="space-y-2 ">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    disabled={!isFormEditable}
 
-                <div className="flex justify-end gap-4">
-                  {
-                    isSubmitttingToAdmin ? <Button variant="outline" disabled>Loading</Button> :
-                      getValues().status !== "DRAFT" ? <></> :
-                        <Button variant="outline" disabled={isSubmitting}>
-                          <BookUp />
-                          Save
-                        </Button>
-                  }
-                  {
-                    getValues().status === "DONE" ? <></> :
-                      isSubmitttingToAdmin ? <Button variant="outline" disabled>Loading</Button> :
-                        getValues().status === "PENDING" ? <>
-                          <Button variant="outline" onClick={unsubmit}>
-                            <LogOut />
-                            Unsubmit
-                          </Button>
-                        </> : <>
-                          <Button type="button" variant="outline" onClick={submit}>
-                            <Send />
-                            Submit for approval
-                          </Button>
-                        </>
-                  }
+                    id="name"
+                    placeholder="Enter the name of your post"
+                    {...register("name")}
+                  />
+                  {errors.name && <p className="text-red-500">{errors.name.message}</p>}
+
                 </div>
               </div>
-            </form>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="flex flex-col space-y-2">
+                  <Label htmlFor="summary">Summary</Label>
+                  <Textarea
+                    className="h-full"
+                    disabled={!isFormEditable}
+
+                    id="summary"
+                    placeholder="Write a brief summary of your post"
+                    {...register("summary")}
+                  />
+                  {errors.summary && <p className="text-red-500">{errors.summary.message}</p>}
+
+                </div>
+                <div className="space-y-2 gap-4 w-full max-w-md">
+                  <label className="text-sm font-medium">Categories</label>
+
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger disabled={!isFormEditable} asChild>
+                      <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+                        Select categories
+                        <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          {selectedCategories.length}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                        <Command>
+                        <CommandInput placeholder="Search categories..." />
+                        <CommandList>
+                          <CommandEmpty>No categories found.</CommandEmpty>
+                          <CommandGroup>
+                          {categories.map((category) => {
+                            const isSelected = selectedCategories.some((item) => item.id === category.id)
+                            return (
+                            <CommandItem
+                              key={category.id}
+                              value={category.id}
+                              onSelect={() => handleSelectCategories(category)}
+                            >
+                              <span>{category.name}</span>
+                              {isSelected && <span className="ml-auto text-primary">✓</span>}
+                            </CommandItem>
+                            )
+                          })}
+                          </CommandGroup>
+                        </CommandList>
+                        </Command>
+                    </PopoverContent>
+                  </Popover>
+
+                  {selectedCategories.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedCategories.map((category) => (
+                        <Badge key={category.id} variant="secondary" className="flex items-center gap-1">
+                          {category.name}
+                          <Button
+                            disabled={!isFormEditable}
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 p-0 hover:bg-transparent"
+                            onClick={() => handleRemoveCategories(category.id)}
+                          >
+                            <X className="h-3 w-3" />
+                            <span className="sr-only">Delete {category.name}</span>
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <ThumbnailUploader
+                key={watch("thumbnailUrl")}
+                disabled={!isFormEditable}
+                defaultImage={watch('thumbnailUrl')} onUploadThumbnail={uploadThumbnail} />
+
+
+              <div className="space-y-2 flex flex-col items-center">
+                <div className="flex gap-5 w-full items-center">
+                  <Label htmlFor="content" className="text-xl font-medium">Content</Label>
+                  <Button
+                    type="button"
+
+                    className={cn(
+                      "h-8 w-8 p-0 rounded-md",
+                      isInsertImage
+                        ? "bg-muted text-muted-foreground cursor-wait"
+                        : "bg-transparent hover:bg-accent"
+                    )}
+                    disabled={isInsertImage}
+                    onClick={() => {
+                      imageArticleInputRef.current?.click();
+                    }}
+                    title="Insert image"
+                  >
+                    {isInsertImage ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4 text-black" />
+                    )}
+                  </Button>
+
+
+
+                </div>
+                <div className="container flex justify-center items-center">
+
+                  <Editor
+                    ref={editorRef}
+                    defaultValue={getValues('content')}
+                    key={isFormEditable ? "editable" : "readonly"} // ⚠️ thêm dòng này
+                    view={{
+                      menu: isFormEditable,
+                      md: isFormEditable,
+                      html: true,
+                    }}
+                    readOnly={!isFormEditable}
+                    style={{ height: "800px", width: "900px" }}
+                    renderHTML={text => md.render(text)}
+
+                  />
+
+
+
+
+                </div>
+                {errors.content && <p className="text-red-500">{errors.content.message}</p>}
+
+              </div>
+
+              <div className="flex justify-end gap-4">
+                {
+                  isSubmitttingToAdmin ? <Button variant="outline" disabled>Loading</Button> :
+                    getValues().status !== "DRAFT" ? <></> :
+                      <Button type="submit" variant="outline" disabled={isSubmitting}
+                        onClick={onSavePost}>
+                        <BookUp />
+                        Save
+                      </Button>
+                }
+                {
+                  getValues().status === "DONE" ? <></> :
+                    isSubmitttingToAdmin ? <Button variant="outline" disabled>Loading</Button> :
+                      getValues().status === "PENDING" ? <>
+                        <Button variant="outline" onClick={unsubmit}>
+                          <LogOut />
+                          Unsubmit
+                        </Button>
+                      </> : <>
+                        <Button type="button" variant="outline" onClick={submit}>
+                          <Send />
+                          Submit for approval
+                        </Button>
+                      </>
+                }
+              </div>
+            </div>
 
           </div>
         </div>
@@ -455,6 +506,28 @@ export default function EditPost() {
 
 
     </div>
+
+    <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Select a post to import content</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2 max-h-60 overflow-y-auto">
+          {userPosts.length === 0 && <div className="text-muted-foreground text-sm">There's no other post</div>}
+          {userPosts.map((p: any) => (
+            <div key={p.id} className={`flex items-center justify-between border rounded px-3 py-2 ${selectedSourceId === p.id ? 'bg-primary/10' : ''}`}
+              onClick={() => setSelectedSourceId(p.id)}>
+              <span>{p.title || p.name}</span>
+              {selectedSourceId === p.id && <span className="text-primary">Seleted</span>}
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setImportDialogOpen(false)} disabled={importLoading}>Hủy</Button>
+          <Button onClick={handleImport} disabled={!selectedSourceId || importLoading}>{importLoading ? 'Đang import...' : 'Import'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </>
 }
 

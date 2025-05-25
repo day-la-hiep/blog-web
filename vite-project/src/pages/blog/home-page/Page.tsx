@@ -6,6 +6,7 @@ import { fetchCategories, fetchPublicCategories } from "@/service/CategoryApi";
 import { fetchPostsByUsername, fetchPublicPosts, fetchPublicPostsByCategories } from "@/service/PostApi";
 import React, { useEffect, useState } from "react";
 import { useActionData, useNavigate } from "react-router-dom";
+import FilterBar from "./component/filter-bar";
 // Mock data
 // const categories = [
 //   { id: "1", name: "All", slug: "all" },
@@ -90,17 +91,18 @@ export default function MainContent() {
   const navigate = useNavigate()
   // Filter articles based on active category
 
-  const [filteredArticles, setFilteredArticles] = React.useState<{
-    id: string,
-    title: string,
-    name: string,
-    thumbnailUrl: string,
-    summary: string
-  }[]>([])
+  const [filteredArticles, setFilteredArticles] = React.useState<any[]>([])
   useEffect(() => {
     const fetchData = async () => {
       const data = activeCategory == 'all' ? await fetchPublicPosts() : await fetchPublicPostsByCategories(activeCategory)
-      setFilteredArticles(data.items)
+      // Map lại để đảm bảo các trường author, authorAvatar, avatarUrl, date luôn tồn tại
+      const mapped = (data.items || []).map((article: any) => ({
+        ...article,
+        author: article.author || article.authorName || "",
+        avatarUrl: article.avatarUrl || "",
+        date: article.date || article.publishedDate || ""
+      }))
+      setFilteredArticles(mapped)
     }
     fetchData()
   }, [activeCategory])
@@ -147,22 +149,21 @@ export default function MainContent() {
 
         <div className="container w-3/4 px-4 py-6 sm:px-6">
           <div className="mb-6 overflow-x-auto">
-
-            <Tabs defaultValue="all" onValueChange={(val) => {
-              setActiveCategory(val)
-            }}>
-              <TabsList className="h-12">
-                {categories.map((category) => (
-                  <TabsTrigger key={category.id} value={category.slug}>
-                    {category.name}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <FilterBar
+              allowMultiple={false}
+              options={categories.map((item) => ({
+                id: item.id,
+                label: item.name,
+                value: item.slug,
+              }))}
+              selectedValues={[activeCategory]}
+              onSelectionChange={(selectedValues) =>  setActiveCategory(selectedValues[0])}
+            />
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 ">
                 {filteredArticles && filteredArticles.map((article) => (
                   <Card
                     key={article.id}
-                    className="cursor-pointer overflow-hidden transition-all hover:shadow-md p-0 gap-2"
+                    className="cursor-pointer overflow-hidden transition-all hover:shadow-md p-0 gap-5"
                     onClick={() => handleArticleClick(article.id)}
                   >
                     <div className="aspect-16/9 w-full overflow-hidden">
@@ -173,17 +174,12 @@ export default function MainContent() {
                       />
                     </div>
                     <CardHeader className="px-4 flex-1">
-                      {/* <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{article.category}</span>
-                        <span>•</span>
-                        <span>{article.readTime} read</span>
-                      </div> */}
-                      <CardTitle className="line-clamp-2 text-xl">{article.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">{article.summary}</CardDescription>
+                      <CardTitle className="line-clamp-3">{article.title}</CardTitle>
+                      <CardDescription className="line-clamp-3 text-xs">{article.summary}</CardDescription>
                     </CardHeader>
                     <CardFooter className="flex items-center gap-3 p-4 pt-0">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={article.authorAvatar || "/placeholder.svg"} alt={article.author} />
+                        <AvatarImage src={article.avatarUrl || article.authorAvatar || "/placeholder.svg"} alt={article.author} />
                         <AvatarFallback>{article.author[0]}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-medium">{article.author}</span>
@@ -192,7 +188,6 @@ export default function MainContent() {
                   </Card>
                 ))}
               </div>
-            </Tabs>
           </div>
         </div>
       </main>

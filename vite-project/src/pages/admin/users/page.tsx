@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Search, UserPlus } from "lucide-react"
+import { ArrowDownIcon, ArrowDownUp, ArrowUpIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, UserPlus } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -20,8 +20,10 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { fetch } from "@cloudinary/url-gen/qualifiers/source"
-import { fetchUsers } from "@/service/UserApi"
+import { fetchUsers, udpateUserRole } from "@/service/UserApi"
 import { Description } from "@radix-ui/react-dialog"
+import { toast } from "sonner"
+import { useEffect } from "react"
 
 // Mock data
 const mockUsers = [
@@ -77,47 +79,61 @@ const mockUsers = [
   },
 ]
 
-const userRoles = ["admin", "editor", "author", "contributor", "subscriber"]
+const userRoles = ["ADMIN", "USER"]
 
 export default function UsersPage() {
+  // pagination and filtering state
+  const [sortBy, setSortBy] = React.useState("id")
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [selectedRole, setSelectedRole] = React.useState("")
-  const [dobStart, setDobStart] = React.useState("")
-  const [dobEnd, setDobEnd] = React.useState("")
+  const currentPageInputRef = React.useRef<HTMLInputElement>(null)
+  const [selectedRole, setSelectedRole] = React.useState("all")
   const [pageLimit, setPageLimit] = React.useState(10)
   const [currentPage, setCurrentPage] = React.useState(0)
+  const totalItems = React.useRef<number>(0)
+  const totalPages = React.useRef<number>(0)
+  // UI state
   const [userDetailOpen, setUserDetailOpen] = React.useState(false)
   const [selectedUser, setSelectedUser] = React.useState<(typeof mockUsers)[0] | null>(null)
   const [filteredUsers, setFilteredUsers] = React.useState<{
     id: string,
-    name: string, 
+    name: string,
     email: string,
     description: string,
     dob: Date,
-  }[]>(mockUsers)
-  const totalItems = React.useRef<number>(0)
-  const totalPages = React.useRef<number>(0)
+    role: string,
+    username: string
+  }[]>([])
+  useEffect(() => {
+    updateUser()
+  }, [currentPage, pageLimit, searchQuery, selectedRole, sortBy])
 
   const updateUser = async () => {
     const res = await fetchUsers({
       page: currentPage,
       limit: pageLimit,
       searchBy: searchQuery,
+      role: selectedRole === "all" ? undefined : selectedRole,
+      sortBy: sortBy,
     })
-    alert(JSON.stringify(res, null, 2))
+    if (!res || !res.items) {
+      toast.error("Failed to fetch users")
+      return
+    }
     setFilteredUsers(res.items.map((item) => ({
       id: item.id,
       name: item.firstName + ' ' + item.lastName,
+      username: item.username,
       email: item.mail,
-      description: item.description
+      description: item.description,
+      role: item.userRole,
+      avatarUrl: item.avatarUrl || "/placeholder.svg?height=40&width=40",
     })))
-
+    currentPageInputRef.current.value = (currentPage + 1).toString()
+    totalPages.current = res.totalPages
+    totalItems.current = res.totalItems
   }
 
-  React.useEffect(() => {
-    alert("Init user")
-    updateUser()
-  }, [])
+
 
   // Filter users based on filters
 
@@ -126,19 +142,55 @@ export default function UsersPage() {
     setUserDetailOpen(true)
   }
 
-  const handleChangeRole = (userId: string, newRole: string) => {
+  const handleUpdateRole = async (username: string, newRole: string) => {
     // In a real app, you would make an API call to update the user role
-    console.log(`Changing role for user ${userId} to ${newRole}`)
+    try {
+      const res = await udpateUserRole(username, newRole)
+      toast.success(`User role updated to ${newRole}`)
+      setFilteredUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.username === username ? { ...user, role: newRole } : user
+        )
+      )
+    } catch (error) {
+      toast.error(`Failed to update user role: ${error.message}`)
+    }
+    console.log(`Changing role for user ${username} to ${newRole}`)
   }
 
+  const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+
+      const value = parseInt(e.currentTarget.value, 10)
+      if (!isNaN(value) && value > 0 && value <= totalPages.current) {
+        setCurrentPage(value - 1)
+        currentPageInputRef.current.value = (currentPage + 1).toString()
+      } else {
+        currentPageInputRef.current.value = (currentPage + 1).toString()
+      }
+    }
+
+
+  }
+  const handlePageInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+
+    currentPageInputRef.current.value = (currentPage + 1).toString()
+  }
+
+  const getSortIcon = (key: string) => {
+    if (sortBy.includes(key)) {
+      if (sortBy.includes('-')) {
+        return <ArrowDownIcon onClick={() => setSortBy(key)} className="h-4 w-4" />;
+      } else {
+        return <ArrowUpIcon onClick={() => setSortBy('-' + key)} className="h-4 w-4" />;
+      }
+    }
+    return <ArrowDownUp onClick={() => setSortBy(key)} className="h-4 w-4 opacity-50" />;
+  };
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Users</h2>
-        <Button>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
       </div>
 
       <Card>
@@ -176,43 +228,59 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">DOB From:</span>
-                <Input type="date" value={dobStart} onChange={(e) => setDobStart(e.target.value)} className="w-auto" />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm">DOB To:</span>
-                <Input type="date" value={dobEnd} onChange={(e) => setDobEnd(e.target.value)} className="w-auto" />
-              </div>
-            </div>
-
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>
+
+                    <div className="flex items-center gap-1">
+                      ID
+                      {getSortIcon('id')}
+                    </div>
+                  </TableHead>
+                  <TableHead>
+
+                    <div className="flex items-center gap-1">
+                      Full Name
+                      {getSortIcon('firstName')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    <div className="flex items-center gap-1">
+                      Username
+                      {getSortIcon('username')}
+                    </div></TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Email
+                      {getSortIcon('mail')}
+                    </div></TableHead>
                   <TableHead className="hidden md:table-cell">Description</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Role
+                      {getSortIcon('userRole')}
+                    </div></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.map((user) => (
                   <TableRow key={user.id}>
+                    <TableCell className="max-w-3 truncate" title={user.id}>{user.id}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                          <AvatarImage src={user.avatarUrl || "/placeholder.svg"} alt={user.name} />
                           <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <span className="font-medium">{user.name}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="hidden md:table-cell">{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell className="hidden md:table-cell">{user.description}</TableCell>
                     <TableCell>
-                      <Select defaultValue={user.role} onValueChange={(value) => handleChangeRole(user.id, value)}>
+                      <Select value={user.role} onValueChange={(value) => handleUpdateRole(user.username, value)}>
                         <SelectTrigger className="w-[130px]">
                           <SelectValue />
                         </SelectTrigger>
@@ -225,11 +293,6 @@ export default function UsersPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => handlePreviewUser(user)}>
-                        Preview
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -238,7 +301,9 @@ export default function UsersPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">Items per page:</p>
-                <Select value={pageLimit} onValueChange={setPageLimit}>
+                <Select value={pageLimit.toString()} onValueChange={(value) => {
+                  setPageLimit(Number(value))
+                }}>
                   <SelectTrigger className="w-[70px]">
                     <SelectValue placeholder="10" />
                   </SelectTrigger>
@@ -255,25 +320,54 @@ export default function UsersPage() {
                 </p>
               </div>
 
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))} />
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink isActive>1</PaginationLink>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink>2</PaginationLink>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationEllipsis />
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationNext onClick={() => setCurrentPage(currentPage + 1)} />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(0)}
+                  disabled={currentPage === 0}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(Math.min(currentPage - 1, totalPages.current - 1))}
+                  disabled={currentPage === 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <Input
+
+                      ref={currentPageInputRef}
+                      className="w-16 h-9 text-center"
+                      onKeyDown={handlePageInputKeyDown}
+                      onBlur={handlePageInputBlur}
+                    />
+                    <span className="text-sm mx-2">/ {totalPages.current}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages.current - 1))}
+                  disabled={currentPage === totalPages.current - 1}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(totalPages.current - 1)}
+                  disabled={currentPage === totalPages.current - 1}
+                  aria-label="Trang cuối cùng"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>

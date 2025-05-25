@@ -47,57 +47,7 @@ export type SortParam = {
     sortDirection: string,
 }
 
-export async function fetchNumberOfPost(
-    filterParam?: PostFilter,
-) {
-    console.log(JSON.stringify(filterParam))
-    const token = localStorage.getItem("token");
-    let url = new URL(`http://localhost:8080/api/articles/count`);
-    let params = new URLSearchParams();
 
-    const appendParam = (key: string, value?: string) => {
-        if (value && value.trim() !== "") {
-            params.append(key, value);
-        }
-    };
-
-    const formatDate = (d: Date, endOfDay = false) => {
-        if (endOfDay) {
-            d.setHours(23, 59, 59)
-        } else {
-            d.setHours(0, 0, 0);
-        }
-        return d.toLocaleString("sv-SE").replace(" ", "T")
-    };
-
-    if (filterParam) {
-        appendParam("startDate", filterParam.startDate ? formatDate(filterParam.startDate, false) : "");
-        appendParam("endDate", filterParam.endDate ? formatDate(filterParam.endDate, true) : "");
-        appendParam("title", filterParam.textOrId);
-        appendParam("id", filterParam.textOrId);
-        appendParam("status", filterParam.status?.toLowerCase());
-        appendParam("authorName", filterParam.authorName?.toLowerCase());
-    }
-
-
-    if (params.toString()) {
-        url.search = params.toString();
-    }
-
-    url.search = params.toString()
-    console.log("Fetch post count URL " + url)
-    console.log("Fetch post count URL params " + params.toString())
-
-    const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-    });
-
-    const res = await response.json();
-    return res.result;
-}
 
 export async function fetchPublicPosts(
     page: number = 0,
@@ -121,6 +71,50 @@ export async function fetchPublicPosts(
         return data.result
     } catch (Error) {
         console.error("Error fetch publics")
+    }
+}
+export async function fetchPostsByCategory(categoryId: string, {
+    page = 0,
+    limit = 10,
+    sortBy = 'id',
+    search,
+    status,
+    approvedStatus,
+    fromDate,
+    toDate,
+}: {
+    fromDate?: string,
+    toDate?: string,
+    page?: number,
+    limit?: number,
+    sortBy?: string,
+    search?: string,
+    status?: string,
+    approvedStatus?: string,
+}
+
+) {
+    try {
+        const res = await axios.get(`${baseUrl}/categories/${categoryId}/articles`, {
+            params: {
+                slug: categoryId,
+                page: page,
+                limit: limit,
+                search: search,
+                sortBy: sortBy
+            },
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+        })
+        const data = res.data
+        if (data.code !== 1000) {
+            throw Error
+        }
+        return data.result
+
+    } catch (err) {
+        console.log("Error fetch posts by categories")
     }
 }
 export async function fetchPublicPostsByCategories(
@@ -192,11 +186,14 @@ export async function deletePost(
             headers: {
                 Authorization: `Bearer ${token}`,
             },
+            validateStatus: (status) => {
+                return status >= 200 && status < 500; // Accept all 2xx responses
+            }
         })
         if (res.data.code == 1000) {
             return res.data.result
         }
-        throw Error()
+        throw Error(res.data.message || "Error deleting post")
     } catch (error) {
         console.error("Error deleting post:", error);
         throw error;
@@ -284,8 +281,8 @@ export async function fetchPosts({
     fromDate,
     toDate,
 }: {
-    fromDate?: Date,
-    toDate?: Date,
+    fromDate?: string,
+    toDate?: string,
     page?: number,
     limit?: number,
     sortBy?: string,
@@ -300,8 +297,8 @@ export async function fetchPosts({
                 Authorization: `Bearer ${token}`,
             },
             params: {
-                startDate: fromDate,
-                endDate: toDate,
+                startDate: fromDate ? new Date(fromDate).toISOString().replace(/Z$/, '') : null,
+                endDate: toDate ? new Date(toDate).toISOString().replace(/Z$/, '') : null,
                 page: page,
                 limit: limit,
                 sortBy: sortBy,
@@ -437,19 +434,25 @@ export async function updatePost(
         categoryIds: string[]
     }
 ) {
-    const res = await axios.put(`${baseUrl}/articles/${postId}`, {
-        title: title,
-        name: name,
-        summary: summary,
-        content: content,
-        categoryIds: categoryIds
-    }, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-    })
-    if (res.data.code == 1000) {
-        return res.data.result
+    try {
+        const res = await axios.put(`${baseUrl}/articles/${postId}`, {
+            title: title,
+            name: name,
+            summary: summary,
+            content: content,
+            categoryIds: categoryIds
+        }, {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+        })
+        if (res.data.code == 1000) {
+            return res.data.result
+        }
+        throw Error()
+    } catch (error) {
+        console.error("Error updating post:", error);
+        throw error;
     }
 }
 
@@ -490,16 +493,7 @@ export async function unsubmitPost(postId: string) {
     }
 }
 
-export async function fetchPublicDetailPost(postId: string): Promise<{
-    id: string,
-    title: string,
-    content: string,
-    authorName: string,
-    status: string,
-    lastUpdatedAt: string,
-    publishedDate: string,
-    thumbnailUrl: string
-}> {
+export async function fetchPublicDetailPost(postId: string): Promise<any> {
     try {
         const res = await axios.get(`${baseUrl}/public/articles/${postId}`)
         if (res.data.code == 1000) {
@@ -511,7 +505,23 @@ export async function fetchPublicDetailPost(postId: string): Promise<{
         throw error;
     }
 }
-
+export async function fetchDetailPost(postId: string): Promise<any> {
+    try {
+        const token = localStorage.getItem('token')
+        const res = await axios.get(`${baseUrl}/articles/${postId}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        })
+        if (res.data.code == 1000) {
+            return res.data.result
+        }
+        throw Error("Error fetching post detail")
+    } catch (error) {
+        console.error("Error fetching post detail:", error);
+        throw error;
+    }
+}
 export async function fetchPostsByUsername(
     username: string,
     {
@@ -556,56 +566,36 @@ export async function fetchPostsByUsername(
 }
 
 // Function to add a post to a saved list
-export const addPostToSavedList = async (listId: string, postId: string, token: string) => {
-    try {
-        const response = await axios.post(`${baseUrl}/saved-lists/${listId}/articles/`, {
-            articleIds: [postId]
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // Assuming Bearer token
-            }
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error adding post to saved list:', error);
-        throw error;
-    }
-};
+
 
 // Function to get user's saved lists
-export const getUserSavedLists = async () => {
-    try {
-        const token = localStorage.getItem('token')
-        const response = await axios.get(`${baseUrl}/users/me/saved-lists`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        // API trả về response.data.result.items
-        return response.data.result;
-    } catch (error) {
-        console.error('Error fetching user saved lists:', error);
-        throw error;
-    }
-};
+
 
 // Function to create a new saved list
-export const createSavedList = async (name: string) => {
+
+
+export async function importArticleContent(articeId: string, sourceId: string, token: string) {
     try {
-        const token = localStorage.getItem('token')
-        const response = await axios.post(`${baseUrl}/users/me/saved-lists`, {
-            name: name
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+        const res = await axios.post(
+            `${baseUrl}/articles/${articeId}/import`,
+            { sourceId },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
             }
-        });
-        return response.data.result;
+        )
+        if (res.data.code === 1000) {
+            return res.data.result
+        }
+        throw Error()
     } catch (error) {
-        console.error('Error creating saved list:', error);
-        throw error;
+        console.error('Error importing article content')
+        throw error
     }
-};
+}
+
+
+
 

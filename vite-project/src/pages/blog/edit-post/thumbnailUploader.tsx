@@ -424,7 +424,7 @@ export const ThumbnailUploader = forwardRef<ThumbnailUploaderRef, ThumbnailUploa
                                 {isUploading && (
                                     <div className="space-y-2 w-full">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-sm font-medium">Đang tải lên...</p>
+                                            <p className="text-sm font-medium">Loading...</p>
                                             <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
                                         </div>
                                         <Progress value={uploadProgress} className="h-2" />

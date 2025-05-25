@@ -1,7 +1,7 @@
 
 import * as React from "react"
-import { ArrowDownZA, ArrowUp, Search, Trash } from "lucide-react"
-import { useSearchParams } from "react-router-dom"
+import { ArrowDownIcon, ArrowDownUp, ArrowDownZA, ArrowUp, ArrowUpIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, Search, Trash } from "lucide-react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,10 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { deleteComment, fetchComments } from "@/service/CommentApi"
+import { toast } from "sonner"
+import { useEffect } from "react"
+import { DatePicker } from "@/components/ui/DatePicker"
 
 // Mock data
 const comments = [
@@ -68,63 +72,108 @@ const posts = [
     { id: "3", title: "The Future of AI in Web Development" },
     { id: "4", title: "CSS Grid vs Flexbox" },
     { id: "5", title: "Mobile-First Design Principles" },
+
 ]
 
 export default function CommentsPage() {
     const [params] = useSearchParams()
+    const navigate = useNavigate()
     const postId = params.get("postId")
+    const [isLoading, setIsLoading] = React.useState(true)
 
     const [searchQuery, setSearchQuery] = React.useState("")
-    const [startDate, setStartDate] = React.useState("")
-    const [endDate, setEndDate] = React.useState("")
-    const [selectedPost, setSelectedPost] = React.useState(postId || "")
-    const [pageSize, setPageSize] = React.useState("10")
+    const [startDate, setStartDate] = React.useState()
+    const [endDate, setEndDate] = React.useState()
+    const [pageLimit, setPageLimit] = React.useState(10)
     const [currentPage, setCurrentPage] = React.useState(1)
     const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
     const [selectedCommentId, setSelectedCommentId] = React.useState<string | null>(null)
+    const [sortBy, setSortBy] = React.useState('id');
 
+    const [filteredComments, setFilteredComments] = React.useState<any[]>(comments)
     // Filter comments based on filters
-    const filteredComments = React.useMemo(() => {
-        let filtered = [...comments]
-
-        // Filter by post
-        if (selectedPost) {
-            filtered = filtered.filter((comment) => comment.postId === selectedPost)
+    useEffect(() => {
+        updateComments()
+    }, [searchQuery, startDate, endDate, pageLimit, currentPage, sortBy])
+    const updateComments = async () => {
+        try {
+            const res = await fetchComments({
+                page: currentPage,
+                limit: pageLimit,
+                search: searchQuery,
+                startDate: startDate,
+                endDate: endDate,
+                sortBy: sortBy
+            })
+            setFilteredComments(res.items)
+            totalPages.current = res.totalPages
+            totalItems.current = res.totalItems
+            currentPageInputRef.current.value = res.page + 1 + ""
+            if (res.page >= totalPages.current && totalPages.current > 0) {
+                setCurrentPage(Math.max(0, totalPages.current - 1))
+            }
+        } catch (error) {
+            toast("Error fetching comments", {
+                description: "There was an error fetching the comments. Please try again later.",
+            })
+        } finally {
         }
-
-        // Filter by search query
-        if (searchQuery) {
-            filtered = filtered.filter(
-                (comment) =>
-                    comment.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    comment.author.toLowerCase().includes(searchQuery.toLowerCase()),
-            )
-        }
-
-        // Filter by date range
-        if (startDate) {
-            filtered = filtered.filter((comment) => comment.date >= startDate)
-        }
-
-        if (endDate) {
-            filtered = filtered.filter((comment) => comment.date <= endDate)
-        }
-
-        return filtered
-    }, [selectedPost, searchQuery, startDate, endDate])
+    }
 
     const handleDeleteClick = (id: string) => {
         setSelectedCommentId(id)
         setDeleteConfirmOpen(true)
     }
+    // pagination logic
+    const totalPages = React.useRef(0)
+    const totalItems = React.useRef(0)
+    const currentPageInputRef = React.useRef<HTMLInputElement>()
+    const handleDeleteConfirm = async () => {
+        try {
+            const res = await deleteComment(selectedCommentId!)
+            updateComments()
+            toast.success("Comment deleted successfully")
+        } catch (error) {
+            toast.error("Error deleting comment", {
+                description: "There was an error deleting the comment. Please try again later.",
+            })
+        } finally {
+            setDeleteConfirmOpen(false)
+            setSelectedCommentId(null)
+        }
 
-    const handleDeleteConfirm = () => {
-        // In a real app, you would make an API call to delete the comment
-        console.log(`Deleting comment ${selectedCommentId}`)
-        setDeleteConfirmOpen(false)
-        setSelectedCommentId(null)
+
+    }
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+
+            const value = parseInt(e.currentTarget.value, 10)
+            if (!isNaN(value) && value > 0 && value <= totalPages.current) {
+                setCurrentPage(value - 1)
+                currentPageInputRef.current.value = (currentPage + 1).toString()
+            } else {
+                currentPageInputRef.current.value = (currentPage + 1).toString()
+            }
+        }
+
+
+    }
+    const handleInputBLur = (e: React.FocusEvent<HTMLInputElement>) => {
+
+        currentPageInputRef.current.value = (currentPage + 1).toString()
+
     }
 
+    const getSortIcon = (key: string) => {
+        if (sortBy.includes(key)) {
+            if (sortBy.includes('-')) {
+                return <ArrowDownIcon onClick={() => setSortBy(key)} className="h-4 w-4" />;
+            } else {
+                return <ArrowUpIcon onClick={() => setSortBy('-' + key)} className="h-4 w-4" />;
+            }
+        }
+        return <ArrowDownUp onClick={() => setSortBy(key)} className="h-4 w-4 opacity-50" />;
+    };
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
@@ -151,75 +200,88 @@ export default function CommentsPage() {
                             <div className="flex flex-col gap-2 sm:flex-row">
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm">From:</span>
-                                    <Input
-                                        type="date"
+                                    <DatePicker
                                         value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="w-auto"
+                                        onValueChange={(date) => setStartDate(date)}
                                     />
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm">To:</span>
-                                    <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-auto" />
+                                    <DatePicker
+                                        value={endDate}
+                                        onValueChange={(date) => setEndDate(date)}
+                                    />
                                 </div>
                             </div>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm">Filter by post:</span>
-                            <Select value={selectedPost} onValueChange={setSelectedPost}>
-                                <SelectTrigger className="w-[300px]">
-                                    <SelectValue placeholder="All posts" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All posts</SelectItem>
-                                    {posts.map((post) => (
-                                        <SelectItem key={post.id} value={post.id}>
-                                            {post.title}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>
                                         <span className="inline-flex items-center gap-1">
-                                            ID <Button className="!p-0 hover:bg-transparent" variant={"ghost"}><ArrowUp size={15}/></Button>
+                                            ID
+                                            {getSortIcon('id')}
                                         </span>
                                     </TableHead>
-                                    <TableHead>Author</TableHead>
-                                    <TableHead>Post</TableHead>
+                                    <TableHead>
+                                        <span className="inline-flex items-center gap-1">
+                                            Author
+                                            {getSortIcon('author')}
+                                        </span>
+                                    </TableHead>
+                                    <TableHead>
+
+                                        <span className="inline-flex items-center gap-1">
+                                            Post
+                                            {getSortIcon('parentArticle.title')}
+                                        </span>
+                                    </TableHead>
                                     <TableHead className="hidden md:table-cell">Content</TableHead>
-                                    <TableHead>Date</TableHead>
+                                    <TableHead>
+                                        <span className="inline-flex items-center gap-1">
+                                            Date
+                                            {getSortIcon('createdAt')}
+                                        </span>
+                                    </TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
-                                {filteredComments.map((comment) => (
-                                    <TableRow key={comment.id}>
-                                        <TableCell className="font-medium">{comment.id}</TableCell>
-                                        <TableCell>{comment.author}</TableCell>
-                                        <TableCell className="max-w-[200px] truncate">{comment.postTitle}</TableCell>
-                                        <TableCell className="hidden max-w-[300px] truncate md:table-cell">{comment.content}</TableCell>
-                                        <TableCell>{comment.date}</TableCell>
-                                        <TableCell>
-                                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(comment.id)}>
-                                                <Trash className="h-4 w-4" />
-                                                <span className="sr-only">Delete</span>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
+                            {
+                                <>
+                                    <TableBody>
+                                        {filteredComments.map((comment) => (
+                                            <TableRow key={comment.id}>
+                                                <TableCell className="font-medium max-w-[50px] truncate cursor-text select-text" title={comment.id}>{comment.id}</TableCell>
+                                                <TableCell>{comment.author}</TableCell>
+                                                <TableCell className="max-w-[200px] truncate" title={comment.articleTitle}>{comment.articleTitle}</TableCell>
+                                                <TableCell className="hidden max-w-[300px] truncate md:table-cell"
+                                                    title={comment.content}>{comment.content}</TableCell>
+                                                <TableCell>{new Date(comment.createdAt).toLocaleDateString('vi-VN')}</TableCell>
+                                                <TableCell>
+                                                    <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(comment.id)}>
+                                                        <Trash className="h-4 w-4" />
+                                                        <span className="sr-only">Delete</span>
+                                                    </Button>
+                                                    <Button variant={"ghost"} size="sm" onClick={() => {
+                                                        navigate(`/admin/posts?search=${comment.articleId}`)
+                                                    }} >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </>
+                            }
+
                         </Table>
 
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <p className="text-sm text-muted-foreground">Items per page:</p>
-                                <Select value={pageSize} onValueChange={setPageSize}>
+                                <Select value={pageLimit.toString()} onValueChange={(value) => {
+                                    setPageLimit(Number(value))
+                                }}>
                                     <SelectTrigger className="w-[70px]">
                                         <SelectValue placeholder="10" />
                                     </SelectTrigger>
@@ -231,30 +293,59 @@ export default function CommentsPage() {
                                     </SelectContent>
                                 </Select>
                                 <p className="text-sm text-muted-foreground">
-                                    Showing {Math.min(filteredComments.length, Number.parseInt(pageSize, 10))} of{" "}
-                                    {filteredComments.length} results
+                                    Showing {Math.min(filteredComments.length, pageLimit)} of{" "}
+                                    {totalItems.current} results
                                 </p>
                             </div>
 
-                            <Pagination>
-                                <PaginationContent>
-                                    <PaginationItem>
-                                        <PaginationPrevious onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))} />
-                                    </PaginationItem>
-                                    <PaginationItem>
-                                        <PaginationLink isActive>1</PaginationLink>
-                                    </PaginationItem>
-                                    <PaginationItem>
-                                        <PaginationLink>2</PaginationLink>
-                                    </PaginationItem>
-                                    <PaginationItem>
-                                        <PaginationEllipsis />
-                                    </PaginationItem>
-                                    <PaginationItem>
-                                        <PaginationNext onClick={() => setCurrentPage(currentPage + 1)} />
-                                    </PaginationItem>
-                                </PaginationContent>
-                            </Pagination>
+                            <div className="flex items-center gap-">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(0)}
+                                    disabled={currentPage === 0}
+                                >
+                                    <ChevronsLeft className="h-4 w-4" />
+                                </Button>
+
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(Math.min(currentPage - 1, totalPages.current - 1))}
+                                    disabled={currentPage === 0}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center">
+                                        <Input
+
+                                            ref={currentPageInputRef}
+                                            className="w-16 h-9 text-center"
+                                            onKeyDown={handleInputKeyDown}
+                                            onBlur={handleInputBLur}
+                                        />
+                                        <span className="text-sm mx-2">/ {totalPages.current}</span>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages.current - 1))}
+                                    disabled={currentPage === totalPages.current - 1}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(totalPages.current - 1)}
+                                    disabled={currentPage === totalPages.current - 1}
+                                    aria-label="Trang cuối cùng"
+                                >
+                                    <ChevronsRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </CardContent>

@@ -27,14 +27,14 @@ const DatePicker = React.forwardRef<HTMLButtonElement, DatePickerProps>(
             type="button"
             variant={"outline"}
             className={cn(
-              "w-[240px] justify-start text-left font-normal",
+              "w-[150px] justify-start text-left font-normal",
               !value && "text-muted-foreground",
               className
             )}
             {...props}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? format(value, "PPP") : "Pick a date"}
+            {value ? format(value, "dd/MM/yyyy") : "Pick a date"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 bg-white" align="start">

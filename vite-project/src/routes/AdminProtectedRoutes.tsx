@@ -7,21 +7,16 @@ import { useAuth } from "@/hooks/AuthProvider"
 
 
 const AdminProtectedRoute: React.FC<{}> = () => {
-    const [isAuthenticating, setIsAuthenticating] = useState<boolean>(true)
-    const { userInfo, token, verifyToken } = useAuth()
-    useEffect(() => {
-        const action = async () => {
-            await verifyToken()
-            setIsAuthenticating(false)
-        }
-        action()
-    }, [token])
+    const { isLoading } = useAuth()
 
-    if (isAuthenticating) {
-        return <div> Loading </div>
+    const { userInfo, token } = useAuth()
+
+
+    if (isLoading) {
+        return <div>Admin Loading </div>
     }
     if (userInfo.role != 'ROLE_ADMIN') {
-        return <Navigate to='/admin/login' />
+        return <Navigate to='/' />
     }
     return <Outlet></Outlet>
 

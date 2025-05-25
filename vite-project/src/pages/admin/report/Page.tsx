@@ -1,7 +1,9 @@
 "use client"
 
+import { DialogFooter } from "@/components/ui/dialog"
+
 import * as React from "react"
-import { Check, Filter, Search, Trash, Trash2, X } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, Trash, Trash2, X } from "lucide-react"
 // import { useRouter } from "next/navigation"
 
 import { Badge } from "@/components/ui/badge"
@@ -10,31 +12,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-    Pagination,
-    PaginationContent,
-    PaginationEllipsis,
-    PaginationItem,
-    PaginationLink,
-    PaginationNext,
-    PaginationPrevious,
-} from "@/components/ui/pagination"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useNavigate } from "react-router-dom"
-
+import { deleteReport, fetchReports, updateReportStatus } from "@/service/ReportApi"
+import { toast } from "sonner"
+import { DatePicker } from "@/components/ui/DatePicker"
+import { deletePost } from "@/service/PostApi"
+import { deleteComment } from "@/service/CommentApi"
 // Thêm interface cho Note
 interface Note {
     id: string
@@ -45,224 +34,6 @@ interface Note {
     isAdmin: boolean
 }
 
-// Mock data for post reports
-const postReports = [
-    {
-        id: "1",
-        postId: "1",
-        postTitle: "Getting Started with Next.js",
-        reportedBy: "User123",
-        reason: "Misleading content",
-        details: "This post contains factually incorrect information about Next.js setup.",
-        date: "2023-05-18",
-        status: "pending",
-        notes: [
-            {
-                id: "note1",
-                reportId: "1",
-                content: "Đã kiểm tra nội dung, cần xem xét kỹ phần cài đặt Next.js",
-                createdBy: "Admin1",
-                createdAt: "2023-05-19",
-                isAdmin: true,
-            },
-            {
-                id: "note2",
-                reportId: "1",
-                content: "Tôi đã thêm thông tin chi tiết về lỗi trong bài viết",
-                createdBy: "User123",
-                createdAt: "2023-05-19",
-                isAdmin: false,
-            },
-        ],
-    },
-    {
-        id: "2",
-        postId: "2",
-        postTitle: "Understanding React Hooks",
-        reportedBy: "User456",
-        reason: "Plagiarism",
-        details: "This content appears to be copied from the official React documentation without attribution.",
-        date: "2023-05-16",
-        status: "accepted",
-        notes: [],
-    },
-    {
-        id: "3",
-        postId: "1",
-        postTitle: "Getting Started with Next.js",
-        reportedBy: "User789",
-        reason: "Inappropriate content",
-        details: "This post contains inappropriate language in the code examples.",
-        date: "2023-05-17",
-        status: "pending",
-        notes: [],
-    },
-    {
-        id: "4",
-        postId: "3",
-        postTitle: "The Future of AI in Web Development",
-        reportedBy: "User101",
-        reason: "Spam",
-        details: "This post contains multiple promotional links that are not relevant to the topic.",
-        date: "2023-05-19",
-        status: "rejected",
-        notes: [],
-    },
-    {
-        id: "5",
-        postId: "4",
-        postTitle: "CSS Grid vs Flexbox",
-        reportedBy: "User202",
-        reason: "Outdated information",
-        details: "This post contains outdated information about browser support for CSS Grid.",
-        date: "2023-05-20",
-        status: "accepted",
-        notes: [],
-    },
-    {
-        id: "6",
-        postId: "2",
-        postTitle: "Understanding React Hooks",
-        reportedBy: "User303",
-        reason: "Misleading content",
-        details: "The examples in this post do not follow React best practices.",
-        date: "2023-05-21",
-        status: "pending",
-        notes: [],
-    },
-]
-
-// Mock data for comment reports
-const commentReports = [
-    {
-        id: "1",
-        commentId: "1",
-        commentContent:
-            "This is a great article! I learned a lot about Next.js and how to get started with my first project.",
-        postId: "1",
-        postTitle: "Getting Started with Next.js",
-        reportedBy: "User123",
-        reason: "Spam",
-        details: "This comment contains promotional links that are not relevant to the article.",
-        date: "2023-05-18",
-        status: "pending",
-        notes: [
-            {
-                id: "note3",
-                reportId: "1",
-                content: "Bình luận này có chứa liên kết đến trang web bán hàng",
-                createdBy: "Admin2",
-                createdAt: "2023-05-19",
-                isAdmin: true,
-            },
-        ],
-    },
-    {
-        id: "2",
-        commentId: "3",
-        commentContent: "I was confused about hooks before, but your explanations really cleared things up for me!",
-        postId: "2",
-        postTitle: "Understanding React Hooks",
-        reportedBy: "User456",
-        reason: "Inappropriate language",
-        details: "This comment contains offensive language that violates community guidelines.",
-        date: "2023-05-16",
-        status: "accepted",
-        notes: [],
-    },
-    {
-        id: "3",
-        commentId: "5",
-        commentContent: "Could you write a follow-up article about advanced hooks like useImperativeHandle?",
-        postId: "2",
-        postTitle: "Understanding React Hooks",
-        reportedBy: "User789",
-        reason: "Misleading information",
-        details: "This comment contains factually incorrect information that could mislead readers.",
-        date: "2023-05-17",
-        status: "pending",
-        notes: [],
-    },
-    {
-        id: "4",
-        commentId: "1",
-        commentContent:
-            "This is a great article! I learned a lot about Next.js and how to get started with my first project.",
-        postId: "1",
-        postTitle: "Getting Started with Next.js",
-        reportedBy: "User101",
-        reason: "Harassment",
-        details: "This comment targets another user in a harassing manner.",
-        date: "2023-05-19",
-        status: "pending",
-        notes: [],
-    },
-    {
-        id: "5",
-        commentId: "4",
-        commentContent: "Interesting perspectives on AI. I wonder how this will affect the job market for developers.",
-        postId: "3",
-        postTitle: "The Future of AI in Web Development",
-        reportedBy: "User202",
-        reason: "Off-topic",
-        details: "This comment is completely unrelated to the article topic.",
-        date: "2023-05-20",
-        status: "rejected",
-        notes: [],
-    },
-    {
-        id: "6",
-        commentId: "2",
-        commentContent: "Thanks for the detailed explanations. Could you elaborate more on the file-based routing system?",
-        postId: "1",
-        postTitle: "Getting Started with Next.js",
-        reportedBy: "User303",
-        reason: "Spam",
-        details: "This comment appears to be automated spam.",
-        date: "2023-05-21",
-        status: "accepted",
-        notes: [],
-    },
-]
-
-// Mock data for posts
-const posts = [
-    { id: "1", title: "Getting Started with Next.js" },
-    { id: "2", title: "Understanding React Hooks" },
-    { id: "3", title: "The Future of AI in Web Development" },
-    { id: "4", title: "CSS Grid vs Flexbox" },
-    { id: "5", title: "Mobile-First Design Principles" },
-]
-
-// Mock data for comments
-const comments = [
-    {
-        id: "1",
-        content: "This is a great article! I learned a lot about Next.js and how to get started with my first project.",
-        postId: "1",
-    },
-    {
-        id: "2",
-        content: "Thanks for the detailed explanations. Could you elaborate more on the file-based routing system?",
-        postId: "1",
-    },
-    {
-        id: "3",
-        content: "I was confused about hooks before, but your explanations really cleared things up for me!",
-        postId: "2",
-    },
-    {
-        id: "4",
-        content: "Interesting perspectives on AI. I wonder how this will affect the job market for developers.",
-        postId: "3",
-    },
-    {
-        id: "5",
-        content: "Could you write a follow-up article about advanced hooks like useImperativeHandle?",
-        postId: "2",
-    },
-]
-
 // Mock current user
 const currentUser = {
     id: "user1",
@@ -271,102 +42,83 @@ const currentUser = {
 }
 
 export default function ReportsPage() {
+    const [isLoading, setIsLoading] = React.useState(true)
     const navigate = useNavigate()
-    const [activeTab, setActiveTab] = React.useState("posts")
+    const [activeTab, setActiveTab] = React.useState("post")
 
     // State for post reports
-    const [postStatusFilter, setPostStatusFilter] = React.useState("all")
+    const [reportStatus, setReportStatus] = React.useState("all")
     const [postSearchQuery, setPostSearchQuery] = React.useState("")
-    const [selectedPostFilter, setSelectedPostFilter] = React.useState("")
-    const [postCurrentPage, setPostCurrentPage] = React.useState(1)
-    const [postPageSize, setPostPageSize] = React.useState("10")
-
-    // State for comment reports
-    const [commentStatusFilter, setCommentStatusFilter] = React.useState("all")
-    const [commentSearchQuery, setCommentSearchQuery] = React.useState("")
-    const [selectedCommentFilter, setSelectedCommentFilter] = React.useState("")
-    const [selectedPostForComment, setSelectedPostForComment] = React.useState("")
-    const [commentCurrentPage, setCommentCurrentPage] = React.useState(1)
-    const [commentPageSize, setCommentPageSize] = React.useState("10")
 
     // Dialog state
     const [detailsDialogOpen, setDetailsDialogOpen] = React.useState(false)
     const [selectedReport, setSelectedReport] = React.useState<any>(null)
-    const [filterSheetOpen, setFilterSheetOpen] = React.useState(false)
 
-    // Thêm state cho ghi chú
+    // State for notes
     const [adminNote, setAdminNote] = React.useState("")
-    const [userNote, setUserNote] = React.useState("")
     const [reportNotes, setReportNotes] = React.useState<Note[]>([])
+    const [isAddingNote, setIsAddingNote] = React.useState(false)
+
+    // Pagination state
+    const [startDate, setStartDate] = React.useState(new Date())
+    const [endDate, setEndDate] = React.useState(new Date())
+    const [currentPage, setCurrentPage] = React.useState(0)
+    const [pageLimit, setPagelimit] = React.useState(10)
+    const totalItems = React.useRef(0)
+    const totalPages = React.useRef(0)
+    const currentPageInputRef = React.useRef<HTMLInputElement>(null)
+
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            const value = Number.parseInt(e.currentTarget.value, 10)
+            if (!isNaN(value) && value > 0 && value <= totalPages.current) {
+                setCurrentPage(value - 1)
+                currentPageInputRef.current.value = (currentPage + 1).toString()
+            } else {
+                currentPageInputRef.current.value = (currentPage + 1).toString()
+            }
+        }
+    }
+    const handleInputBLur = (e: React.FocusEvent<HTMLInputElement>) => {
+        currentPageInputRef.current.value = (currentPage + 1).toString()
+    }
 
     // Filter post reports
-    const filteredPostReports = React.useMemo(() => {
-        let filtered = [...postReports]
-
-        // Filter by status
-        if (postStatusFilter !== "all") {
-            filtered = filtered.filter((report) => report.status === postStatusFilter)
+    const [reports, setReports] = React.useState<any[]>([])
+    React.useEffect(() => {
+        udpateReports()
+    }, [currentPage, pageLimit, activeTab, startDate, endDate, reportStatus])
+    const udpateReports = async () => {
+        try {
+            setIsLoading(true)
+            const response = await fetchReports({
+                page: currentPage,
+                limit: pageLimit,
+                sortBy: "createdAt",
+                targetType: activeTab === "post" ? "ARTICLE" : "COMMENT",
+                status: reportStatus === "all" ? undefined : reportStatus,
+                startDate: startDate ? startDate.toISOString().replace(/Z$/, '') : undefined,
+                endDate: endDate ? endDate.toISOString().replace(/Z$/, '') : undefined,
+            })
+            setReports(response.items || [])
+            setCurrentPage(response.page)
+            setPagelimit(response.limit)
+            totalItems.current = response.totalItems
+            totalPages.current = response.totalPages
+            currentPageInputRef.current.value = response.page + 1 + ""
+        } catch (error) {
+            console.error("Failed to fetch reports:", error)
+            toast.error("Failed to fetch reports")
+        } finally {
+            setIsLoading(false)
         }
-
-        // Filter by search query
-        if (postSearchQuery) {
-            filtered = filtered.filter(
-                (report) =>
-                    report.postTitle.toLowerCase().includes(postSearchQuery.toLowerCase()) ||
-                    report.reason.toLowerCase().includes(postSearchQuery.toLowerCase()) ||
-                    report.details.toLowerCase().includes(postSearchQuery.toLowerCase()) ||
-                    report.reportedBy.toLowerCase().includes(postSearchQuery.toLowerCase()),
-            )
-        }
-
-        // Filter by specific post
-        if (selectedPostFilter) {
-            filtered = filtered.filter((report) => report.postId === selectedPostFilter)
-        }
-
-        return filtered
-    }, [postStatusFilter, postSearchQuery, selectedPostFilter])
-
-    // Filter comment reports
-    const filteredCommentReports = React.useMemo(() => {
-        let filtered = [...commentReports]
-
-        // Filter by status
-        if (commentStatusFilter !== "all") {
-            filtered = filtered.filter((report) => report.status === commentStatusFilter)
-        }
-
-        // Filter by search query
-        if (commentSearchQuery) {
-            filtered = filtered.filter(
-                (report) =>
-                    report.commentContent.toLowerCase().includes(commentSearchQuery.toLowerCase()) ||
-                    report.postTitle.toLowerCase().includes(commentSearchQuery.toLowerCase()) ||
-                    report.reason.toLowerCase().includes(commentSearchQuery.toLowerCase()) ||
-                    report.details.toLowerCase().includes(commentSearchQuery.toLowerCase()) ||
-                    report.reportedBy.toLowerCase().includes(commentSearchQuery.toLowerCase()),
-            )
-        }
-
-        // Filter by specific comment
-        if (selectedCommentFilter) {
-            filtered = filtered.filter((report) => report.commentId === selectedCommentFilter)
-        }
-
-        // Filter by specific post
-        if (selectedPostForComment) {
-            filtered = filtered.filter((report) => report.postId === selectedPostForComment)
-        }
-
-        return filtered
-    }, [commentStatusFilter, commentSearchQuery, selectedCommentFilter, selectedPostForComment])
+    }
 
     const handleViewDetails = (report: any) => {
+        setAdminNote(report.note || "")
         setSelectedReport(report)
-        setReportNotes(report.notes || [])
         setDetailsDialogOpen(true)
-        setAdminNote("") // Reset admin note when opening details
-        setUserNote("") // Reset user note when opening details
+        setAdminNote("")
     }
 
     const handleReportAction = (reportId: string, type: string, action: "accept" | "reject") => {
@@ -374,275 +126,186 @@ export default function ReportsPage() {
         console.log(`${action === "accept" ? "Accepting" : "Rejecting"} ${type} report ${reportId}`)
     }
 
-    const handleDeleteContent = (report: any) => {
-        // Trong thực tế, bạn sẽ gọi API để xóa bài viết hoặc bình luận
-        const contentType = report.commentId ? "bình luận" : "bài viết"
-        const contentId = report.commentId || report.postId
+    const handleDeleteContent = async (report: any) => {
+        try {
+            if (report.targetType === "ARTICLE") {
+                const res = confirm("Are you sure you want to delete this post?")
+                if (!res) {
+                    return
+                }
+                await deletePost(report.targetId)
 
-        if (confirm(`Bạn có chắc chắn muốn xóa ${contentType} này không?`)) {
-            console.log(`Xóa ${contentType} với ID: ${contentId}`)
-            // Sau khi xóa thành công, có thể cập nhật trạng thái báo cáo thành "accepted"
-            alert(`Đã xóa ${contentType} thành công!`)
+            } else {
+                const res = confirm("Are you sure you want to delete this comment?")
+                if (!res) {
+                    return
+                }
+                await deleteComment(report.targetId)
+                console.log(`Xóa bình luận với ID: ${report.commentId}`)
+            }
+            await udpateReports()
+        } catch (error) {
+            console.error("Failed to delete content:", error)
+            toast.error("Failed to delete content")
         }
     }
 
-    const handleDeleteReport = (reportId: string) => {
+    const handleDeleteReport = async (reportId: string) => {
         // Trong thực tế, bạn sẽ gọi API để xóa báo cáo
         if (confirm("Bạn có chắc chắn muốn xóa báo cáo này không?")) {
-            console.log(`Xóa báo cáo với ID: ${reportId}`)
-            alert("Đã xóa báo cáo thành công!")
-            setDetailsDialogOpen(false)
+            try {
+                const res = await deleteReport(reportId)
+                console.log(`Xóa báo cáo với ID: ${reportId}`)
+                toast.success("Report deleted successfully")
+                udpateReports()
+                setDetailsDialogOpen(false)
+            } catch (error) {
+                console.error("Failed to delete report:", error)
+                toast.error("Failed to delete report")
+            }
         }
-    }
-
-    const handleAddNote = (isAdmin: boolean) => {
-        if (!selectedReport) return
-
-        const noteContent = isAdmin ? adminNote : userNote
-        if (!noteContent.trim()) {
-            alert("Vui lòng nhập nội dung ghi chú!")
-            return
-        }
-
-        // Trong thực tế, bạn sẽ gọi API để lưu ghi chú
-        const newNote: Note = {
-            id: `note${Date.now()}`,
-            reportId: selectedReport.id,
-            content: noteContent,
-            createdBy: currentUser.name,
-            createdAt: new Date().toISOString().split("T")[0],
-            isAdmin,
-        }
-
-        // Cập nhật danh sách ghi chú
-        setReportNotes([...reportNotes, newNote])
-
-        // Reset form
-        if (isAdmin) {
-            setAdminNote("")
-        } else {
-            setUserNote("")
-        }
-
-        alert("Đã thêm ghi chú thành công!")
     }
 
     const handleViewPost = (postId: string) => {
-        navigate(`/posts/${postId}`)
+        window.open(`/admin/preview-post/${postId}`, "_blank")
     }
 
-    const handleViewComment = (postId: string, commentId: string) => {
-        navigate(`/posts/${postId}?highlight=${commentId}`)
+    const handleSaveNote = async (reportId: string) => {
+        if (!adminNote.trim() || !selectedReport) return
+        setIsAddingNote(true)
+        try {
+            // In a real app, you would make an API call to save the note
+            const res = await updateReportStatus(selectedReport.id, selectedReport.status, adminNote.trim())
+
+            setReports((prev) => prev.map((report) => (report.id === reportId ? { ...report, note: adminNote } : report)))
+            toast.success("Note added successfully")
+        } catch (error) {
+            console.error("Failed to add note:", error)
+            toast.error("Failed to add note")
+        } finally {
+            setIsAddingNote(false)
+        }
     }
 
-    const resetPostFilters = () => {
-        setPostStatusFilter("all")
-        setPostSearchQuery("")
-        setSelectedPostFilter("")
+    const handleMarkResolved = async (reportId: string, status: string) => {
+        try {
+            // In a real app, you would make an API call to update the report status
+            const res = await updateReportStatus(reportId, status === 'PENDING' ? "PENDING" : "RESOLVED", adminNote.trim())
+            console.log(`Marking report ${reportId} as ${status ? "resolved" : "unresolved"}`)
+
+            // Update local state
+            setReports((prev) => prev.map((report) => (report.id === reportId ? { ...report, status: status } : report)))
+
+            if (selectedReport && selectedReport.id === reportId) {
+                setSelectedReport((prev) => ({ ...prev, status: status }))
+            }
+
+            toast.success(`Report marked as ${status ? "resolved" : "unresolved"}`)
+        } catch (error) {
+            console.error("Failed to update report status:", error)
+            toast.error("Failed to update report status")
+        }
     }
 
-    const resetCommentFilters = () => {
-        setCommentStatusFilter("all")
-        setCommentSearchQuery("")
-        setSelectedCommentFilter("")
-        setSelectedPostForComment("")
-    }
+
 
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold tracking-tight">Reports</h2>
-                <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="outline" className="flex items-center gap-2">
-                            <Filter className="h-4 w-4" />
-                            Advanced Filters
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent>
-                        <SheetHeader>
-                            <SheetTitle>Advanced Filters</SheetTitle>
-                            <SheetDescription>Customize filters to find reports more precisely.</SheetDescription>
-                        </SheetHeader>
-                        <div className="mt-6 space-y-6">
-                            {activeTab === "posts" ? (
-                                <>
-                                    <div className="space-y-2">
-                                        <h3 className="text-sm font-medium">Filter by Post</h3>
-                                        <Select value={selectedPostFilter} onValueChange={setSelectedPostFilter}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="All Posts" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All Posts</SelectItem>
-                                                {posts.map((post) => (
-                                                    <SelectItem key={post.id} value={post.id}>
-                                                        {post.title}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h3 className="text-sm font-medium">Report Status</h3>
-                                        <Select value={postStatusFilter} onValueChange={setPostStatusFilter}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="All Statuses" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All Statuses</SelectItem>
-                                                <SelectItem value="pending">Pending</SelectItem>
-                                                <SelectItem value="accepted">Accepted</SelectItem>
-                                                <SelectItem value="rejected">Rejected</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <Button className="w-full" onClick={resetPostFilters}>
-                                        Reset Filters
-                                    </Button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="space-y-2">
-                                        <h3 className="text-sm font-medium">Lọc theo bài viết</h3>
-                                        <Select value={selectedPostForComment} onValueChange={setSelectedPostForComment}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Tất cả bài viết" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">Tất cả bài viết</SelectItem>
-                                                {posts.map((post) => (
-                                                    <SelectItem key={post.id} value={post.id}>
-                                                        {post.title}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h3 className="text-sm font-medium">Lọc theo bình luận</h3>
-                                        <Select value={selectedCommentFilter} onValueChange={setSelectedCommentFilter}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Tất cả bình luận" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">Tất cả bình luận</SelectItem>
-                                                {comments.map((comment) => (
-                                                    <SelectItem key={comment.id} value={comment.id}>
-                                                        {comment.content.substring(0, 30)}...
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h3 className="text-sm font-medium">Trạng thái báo cáo</h3>
-                                        <Select value={commentStatusFilter} onValueChange={setCommentStatusFilter}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Tất cả trạng thái" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                                                <SelectItem value="pending">Chờ xử lý</SelectItem>
-                                                <SelectItem value="accepted">Đã chấp nhận</SelectItem>
-                                                <SelectItem value="rejected">Đã từ chối</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <Button className="w-full" onClick={resetCommentFilters}>
-                                        Đặt lại bộ lọc
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    </SheetContent>
-                </Sheet>
             </div>
 
-            <Tabs defaultValue="posts" value={activeTab} onValueChange={setActiveTab}>
+            <Tabs defaultValue="post" value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
-                    <TabsTrigger value="posts">Post Reports</TabsTrigger>
-                    <TabsTrigger value="comments">Comment Reports</TabsTrigger>
+                    <TabsTrigger value="post">Post Reports</TabsTrigger>
+                    <TabsTrigger value="comment">Comment Reports</TabsTrigger>
                 </TabsList>
+            </Tabs>
 
-                <TabsContent value="posts">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Manage Post Reports</CardTitle>
-                            <CardDescription>View and process reports about inappropriate post content.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                                    <div className="flex flex-1 items-center gap-2">
-                                        <Search className="h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Search reports..."
-                                            value={postSearchQuery}
-                                            onChange={(e) => setPostSearchQuery(e.target.value)}
-                                            className="flex-1"
-                                        />
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm">Status:</span>
-                                        <Select value={postStatusFilter} onValueChange={setPostStatusFilter}>
-                                            <SelectTrigger className="w-[150px]">
-                                                <SelectValue placeholder="All" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All</SelectItem>
-                                                <SelectItem value="pending">Pending</SelectItem>
-                                                <SelectItem value="accepted">Accepted</SelectItem>
-                                                <SelectItem value="rejected">Rejected</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Manage Post Reports</CardTitle>
+                    <CardDescription>View and process reports about inappropriate post content.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                            <div className="flex flex-1 items-center gap-2">
+                                <Search className="h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search reports..."
+                                    value={postSearchQuery}
+                                    onChange={(e) => setPostSearchQuery(e.target.value)}
+                                    className="flex-1"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm">From:</span>
+                                    <DatePicker
+                                        value={startDate}
+                                        onValueChange={(date) => setStartDate(date)}
+                                    />
                                 </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm">To:</span>
+                                    <DatePicker
+                                        value={endDate}
+                                        onValueChange={(date) => setEndDate(date)}
+                                    />
+                                </div>
+                            </div>
 
-                                <Table>
-                                    <TableHeader>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">Status:</span>
+                                <Select value={reportStatus} onValueChange={setReportStatus}>
+                                    <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="All" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All</SelectItem>
+                                        <SelectItem value="PENDING">Pending</SelectItem>
+                                        <SelectItem value="RESOLVED">Resolved</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>ID</TableHead>
+                                    <TableHead>Reason</TableHead>
+                                    <TableHead className="hidden md:table-cell">Details</TableHead>
+                                    <TableHead>Reported By</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <>
                                         <TableRow>
-                                            <TableHead>ID</TableHead>
-                                            <TableHead>Post</TableHead>
-                                            <TableHead>Reason</TableHead>
-                                            <TableHead className="hidden md:table-cell">Details</TableHead>
-                                            <TableHead>Reported By</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Actions</TableHead>
+                                            <TableCell colSpan={7} className="text-center py-4">
+                                                <div className="flex items-center justify-center">
+                                                    <span className="text-muted-foreground">Loading reports...</span>
+                                                </div>
+                                            </TableCell>
                                         </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredPostReports.map((report) => (
+                                    </>
+                                ) : (
+                                    <>
+                                        {reports.map((report) => (
                                             <TableRow key={report.id}>
-                                                <TableCell className="font-medium">{report.id}</TableCell>
-                                                <TableCell className="max-w-[200px] truncate">
-                                                    <Button
-                                                        variant="link"
-                                                        className="p-0 h-auto font-normal text-left"
-                                                        onClick={() => handleViewPost(report.postId)}
-                                                    >
-                                                        {report.postTitle}
-                                                    </Button>
+                                                <TableCell className="font-medium max-w-3 truncate" title={report.id}>
+                                                    {report.id}
                                                 </TableCell>
                                                 <TableCell>{report.reason}</TableCell>
-                                                <TableCell className="hidden max-w-[250px] truncate md:table-cell">{report.details}</TableCell>
-                                                <TableCell>{report.reportedBy}</TableCell>
+                                                <TableCell>{report.authorUsername}</TableCell>
+                                                <TableCell>{new Date(report.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                                                 <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            report.status === "accepted"
-                                                                ? "default"
-                                                                : report.status === "pending"
-                                                                    ? "outline"
-                                                                    : "secondary"
-                                                        }
-                                                    >
-                                                        {report.status === "accepted"
-                                                            ? "Accepted"
-                                                            : report.status === "pending"
-                                                                ? "Pending"
-                                                                : "Rejected"}
+                                                    <Badge variant={report.status === 'PENDING' ? "default" : "destructive"}>
+                                                        {report.status === 'PENDING' ? "Pending" : "Resolved"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -653,27 +316,37 @@ export default function ReportsPage() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => handleViewDetails(report)}>
+                                                            <DropdownMenuItem onClick={() => {
+                                                                setTimeout(() => {
+                                                                    handleViewDetails(report)
+                                                                }, 0)
+                                                            }}>
                                                                 View Details
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleViewPost(report.postId)}>
-                                                                View Post
-                                                            </DropdownMenuItem>
-                                                            {report.status === "pending" && (
-                                                                <>
-                                                                    <DropdownMenuItem onClick={() => handleReportAction(report.id, "post", "accept")}>
-                                                                        <Check className="mr-2 h-4 w-4" />
-                                                                        <span>Accept Report</span>
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleReportAction(report.id, "post", "reject")}>
-                                                                        <X className="mr-2 h-4 w-4" />
-                                                                        <span>Reject Report</span>
+                                                            {
+                                                                report.targetType === 'ARTICLE' && <>
+                                                                    <DropdownMenuItem onClick={() => handleViewPost(report.targetId)}>
+                                                                        View Post
                                                                     </DropdownMenuItem>
                                                                 </>
-                                                            )}
+                                                            }
+
+                                                            <DropdownMenuItem onClick={() => handleMarkResolved(report.id, report.status === 'PENDING' ? 'RESOLVED' : 'PENDING')}>
+                                                                {report.status !== 'PENDING' ? (
+                                                                    <>
+                                                                        <X className="mr-2 h-4 w-4" />
+                                                                        <span>Mark Unresolved</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Check className="mr-2 h-4 w-4" />
+                                                                        <span>Mark Resolved</span>
+                                                                    </>
+                                                                )}
+                                                            </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleDeleteContent(report)} className="text-red-600">
                                                                 <Trash2 className="mr-2 h-4 w-4" />
-                                                                <span>Delete Post</span>
+                                                                <span>Delete content</span>
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleDeleteReport(report.id)} className="text-red-600">
                                                                 <Trash className="mr-2 h-4 w-4" />
@@ -685,246 +358,86 @@ export default function ReportsPage() {
                                             </TableRow>
                                         ))}
 
-                                        {filteredPostReports.length === 0 && (
+                                        {reports.length === 0 && (
                                             <TableRow>
                                                 <TableCell colSpan={7} className="h-24 text-center">
                                                     No reports found
                                                 </TableCell>
                                             </TableRow>
                                         )}
-                                    </TableBody>
-                                </Table>
+                                    </>
+                                )}
+                            </TableBody>
+                        </Table>
 
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-sm text-muted-foreground">Items per page:</p>
-                                        <Select value={postPageSize} onValueChange={setPostPageSize}>
-                                            <SelectTrigger className="w-[70px]">
-                                                <SelectValue placeholder="10" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="5">5</SelectItem>
-                                                <SelectItem value="10">10</SelectItem>
-                                                <SelectItem value="20">20</SelectItem>
-                                                <SelectItem value="50">50</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-sm text-muted-foreground">
-                                            Showing {Math.min(filteredPostReports.length, Number.parseInt(postPageSize, 10))} /{" "}
-                                            {filteredPostReports.length} results
-                                        </p>
-                                    </div>
-
-                                    <Pagination>
-                                        <PaginationContent>
-                                            <PaginationItem>
-                                                <PaginationPrevious onClick={() => setPostCurrentPage(Math.max(postCurrentPage - 1, 1))} />
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationLink isActive>1</PaginationLink>
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationLink>2</PaginationLink>
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationEllipsis />
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationNext onClick={() => setPostCurrentPage(postCurrentPage + 1)} />
-                                            </PaginationItem>
-                                        </PaginationContent>
-                                    </Pagination>
-                                </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <p className="text-sm text-muted-foreground">Items per page:</p>
+                                <Select
+                                    defaultValue={pageLimit.toString()}
+                                    value={pageLimit.toString()}
+                                    onValueChange={(value) => setPagelimit(Number(value))}
+                                >
+                                    <SelectTrigger className="w-[70px]">
+                                        <SelectValue placeholder="10" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5">5</SelectItem>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="20">20</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {Math.min(reports.length, pageLimit)} of {totalItems.current} results
+                                </p>
                             </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                            <div className="flex items-center gap-1">
+                                <Button variant="outline" size="icon" onClick={() => setCurrentPage(0)} disabled={currentPage === 0}>
+                                    <ChevronsLeft className="h-4 w-4" />
+                                </Button>
 
-                <TabsContent value="comments">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Manage Comment Reports</CardTitle>
-                            <CardDescription>View and process reports about inappropriate comments.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                                    <div className="flex flex-1 items-center gap-2">
-                                        <Search className="h-4 w-4 text-muted-foreground" />
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(Math.min(currentPage - 1, totalPages.current - 1))}
+                                    disabled={currentPage === 0}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center">
                                         <Input
-                                            placeholder="Tìm kiếm báo cáo..."
-                                            value={commentSearchQuery}
-                                            onChange={(e) => setCommentSearchQuery(e.target.value)}
-                                            className="flex-1"
+                                            ref={currentPageInputRef}
+                                            className="w-16 h-9 text-center"
+                                            onKeyDown={handleInputKeyDown}
+                                            onBlur={handleInputBLur}
                                         />
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm">Trạng thái:</span>
-                                        <Select value={commentStatusFilter} onValueChange={setCommentStatusFilter}>
-                                            <SelectTrigger className="w-[150px]">
-                                                <SelectValue placeholder="Tất cả" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">Tất cả</SelectItem>
-                                                <SelectItem value="pending">Chờ xử lý</SelectItem>
-                                                <SelectItem value="accepted">Đã chấp nhận</SelectItem>
-                                                <SelectItem value="rejected">Đã từ chối</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <span className="text-sm mx-2">/ {totalPages.current}</span>
                                     </div>
                                 </div>
-
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>ID</TableHead>
-                                            <TableHead>Comment</TableHead>
-                                            <TableHead>Post</TableHead>
-                                            <TableHead>Reason</TableHead>
-                                            <TableHead className="hidden md:table-cell">Details</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredCommentReports.map((report) => (
-                                            <TableRow key={report.id}>
-                                                <TableCell className="font-medium">{report.id}</TableCell>
-                                                <TableCell className="max-w-[200px] truncate">
-                                                    <Button
-                                                        variant="link"
-                                                        className="p-0 h-auto font-normal text-left"
-                                                        onClick={() => handleViewComment(report.postId, report.commentId)}
-                                                    >
-                                                        {report.commentContent.substring(0, 30)}...
-                                                    </Button>
-                                                </TableCell>
-                                                <TableCell className="max-w-[150px] truncate">
-                                                    <Button
-                                                        variant="link"
-                                                        className="p-0 h-auto font-normal text-left"
-                                                        onClick={() => handleViewPost(report.postId)}
-                                                    >
-                                                        {report.postTitle}
-                                                    </Button>
-                                                </TableCell>
-                                                <TableCell>{report.reason}</TableCell>
-                                                <TableCell className="hidden max-w-[200px] truncate md:table-cell">{report.details}</TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant={
-                                                            report.status === "accepted"
-                                                                ? "default"
-                                                                : report.status === "pending"
-                                                                    ? "outline"
-                                                                    : "secondary"
-                                                        }
-                                                    >
-                                                        {report.status === "accepted"
-                                                            ? "Đã chấp nhận"
-                                                            : report.status === "pending"
-                                                                ? "Chờ xử lý"
-                                                                : "Đã từ chối"}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="sm">
-                                                                Thao tác
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => handleViewDetails(report)}>
-                                                                Xem chi tiết
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleViewComment(report.postId, report.commentId)}>
-                                                                Xem bình luận
-                                                            </DropdownMenuItem>
-                                                            {report.status === "pending" && (
-                                                                <>
-                                                                    <DropdownMenuItem onClick={() => handleReportAction(report.id, "comment", "accept")}>
-                                                                        <Check className="mr-2 h-4 w-4" />
-                                                                        <span>Chấp nhận báo cáo</span>
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleReportAction(report.id, "comment", "reject")}>
-                                                                        <X className="mr-2 h-4 w-4" />
-                                                                        <span>Từ chối báo cáo</span>
-                                                                    </DropdownMenuItem>
-                                                                </>
-                                                            )}
-                                                            <DropdownMenuItem onClick={() => handleDeleteContent(report)} className="text-red-600">
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                <span>Xóa bình luận</span>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleDeleteReport(report.id)} className="text-red-600">
-                                                                <Trash className="mr-2 h-4 w-4" />
-                                                                <span>Xóa báo cáo</span>
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-
-                                        {filteredCommentReports.length === 0 && (
-                                            <TableRow>
-                                                <TableCell colSpan={7} className="h-24 text-center">
-                                                    Không tìm thấy báo cáo nào
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-sm text-muted-foreground">Số mục mỗi trang:</p>
-                                        <Select value={commentPageSize} onValueChange={setCommentPageSize}>
-                                            <SelectTrigger className="w-[70px]">
-                                                <SelectValue placeholder="10" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="5">5</SelectItem>
-                                                <SelectItem value="10">10</SelectItem>
-                                                <SelectItem value="20">20</SelectItem>
-                                                <SelectItem value="50">50</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-sm text-muted-foreground">
-                                            Hiển thị {Math.min(filteredCommentReports.length, Number.parseInt(commentPageSize, 10))} /{" "}
-                                            {filteredCommentReports.length} kết quả
-                                        </p>
-                                    </div>
-
-                                    <Pagination>
-                                        <PaginationContent>
-                                            <PaginationItem>
-                                                <PaginationPrevious
-                                                    onClick={() => setCommentCurrentPage(Math.max(commentCurrentPage - 1, 1))}
-                                                />
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationLink isActive>1</PaginationLink>
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationLink>2</PaginationLink>
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationEllipsis />
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationNext onClick={() => setCommentCurrentPage(commentCurrentPage + 1)} />
-                                            </PaginationItem>
-                                        </PaginationContent>
-                                    </Pagination>
-                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages.current - 1))}
+                                    disabled={currentPage === totalPages.current - 1}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCurrentPage(totalPages.current - 1)}
+                                    disabled={currentPage === totalPages.current - 1}
+                                    aria-label="Trang cuối cùng"
+                                >
+                                    <ChevronsRight className="h-4 w-4" />
+                                </Button>
                             </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
                 <DialogContent className="sm:max-w-[600px]">
@@ -941,15 +454,13 @@ export default function ReportsPage() {
                                 <div className="col-span-1 font-medium">Type:</div>
                                 <div className="col-span-3">{selectedReport.commentId ? "Comment Report" : "Post Report"}</div>
 
-                                {selectedReport.commentId ? (
+                                {selectedReport.targetId ? (
                                     <>
-                                        <div className="col-span-1 font-medium">Comment:</div>
-                                        <div className="col-span-3">{selectedReport.commentContent}</div>
+                                        <div className="col-span-1 font-medium">Target id:</div>
+                                        <div className="col-span-3">{selectedReport.targetId}</div>
                                     </>
                                 ) : null}
 
-                                <div className="col-span-1 font-medium">Post:</div>
-                                <div className="col-span-3">{selectedReport.postTitle}</div>
 
                                 <div className="col-span-1 font-medium">Reason:</div>
                                 <div className="col-span-3">{selectedReport.reason}</div>
@@ -958,27 +469,26 @@ export default function ReportsPage() {
                                 <div className="col-span-3">{selectedReport.details}</div>
 
                                 <div className="col-span-1 font-medium">Reported By:</div>
-                                <div className="col-span-3">{selectedReport.reportedBy}</div>
+                                <div className="col-span-3">{selectedReport.authorUsername}</div>
 
-                                <div className="col-span-1 font-medium">Report Date:</div>
-                                <div className="col-span-3">{selectedReport.date}</div>
+                                <div className="col-span-1 font-medium">Created at:</div>
+                                <div className="col-span-3">{new Date(selectedReport.createdAt).toLocaleDateString('vi-VN')}</div>
+
+                                <div className="col-span-1 font-medium">Updated at:</div>
+                                <div className="col-span-3">{new Date(selectedReport.updatedAt).toLocaleDateString('vi-VN')}</div>
 
                                 <div className="col-span-1 font-medium">Status:</div>
                                 <div className="col-span-3">
                                     <Badge
                                         variant={
-                                            selectedReport.status === "accepted"
+                                            selectedReport.status === "PENDING"
                                                 ? "default"
-                                                : selectedReport.status === "pending"
-                                                    ? "outline"
-                                                    : "secondary"
+                                                : "outline"
                                         }
                                     >
-                                        {selectedReport.status === "accepted"
-                                            ? "Đã chấp nhận"
-                                            : selectedReport.status === "pending"
-                                                ? "Chờ xử lý"
-                                                : "Đã từ chối"}
+                                        {selectedReport.status === "PENDING"
+                                            ? "Pending"
+                                            : "Resolved"}
                                     </Badge>
                                 </div>
                             </div>
@@ -986,76 +496,66 @@ export default function ReportsPage() {
                             {/* Phần ghi chú */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-medium">Notes</h3>
-
-                                {/* Danh sách ghi chú hiện có */}
-                                {/* {reportNotes.length > 0 ? (
-                  <div className="space-y-3">
-                    {reportNotes.map((note) => (
-                      <div key={note.id} className="rounded-md border p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{note.createdBy}</span>
-                            {note.isAdmin && (
-                              <Badge variant="outline" className="text-xs">
-                                Admin
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-sm text-muted-foreground">{note.createdAt}</span>
-                        </div>
-                        <p className="mt-2 text-sm">{note.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No notes for this report yet.</p>
-                )} */}
-
                                 <Separator />
 
                                 {/* Form thêm ghi chú mới */}
                                 <div className="space-y-2">
+                                    <Label htmlFor="admin-note">Note</Label>
                                     <Textarea
                                         id="admin-note"
-                                        value={adminNote}
+                                        defaultValue={selectedReport.note || ""}
                                         onChange={(e) => setAdminNote(e.target.value)}
                                         placeholder="Enter admin note about this report..."
                                         className="min-h-[100px]"
                                     />
+                                    <Button onClick={() => handleSaveNote(selectedReport.id)}
+                                        disabled={!adminNote.trim() || isAddingNote}
+
+                                        className="w-full">
+                                        {isAddingNote ? "Adding..." : "Save note"}
+                                    </Button>
                                 </div>
                             </div>
                         </div>
                     )}
                     <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                        {selectedReport && selectedReport.status === "pending" && (
-                            <div className="flex gap-2">
+                        {selectedReport && (
+                            <div className="flex flex-wrap gap-2">
+                                {selectedReport.status === "pending" && (
+                                    <>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                handleReportAction(selectedReport.id, selectedReport.commentId ? "comment" : "post", "reject")
+                                                setDetailsDialogOpen(false)
+                                            }}
+                                        >
+                                            Reject
+                                        </Button>
+                                        <Button
+                                            onClick={() => {
+                                                handleReportAction(selectedReport.id, selectedReport.commentId ? "comment" : "post", "accept")
+                                                setDetailsDialogOpen(false)
+                                            }}
+                                        >
+                                            Accept
+                                        </Button>
+                                    </>
+                                )}
                                 <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        handleReportAction(selectedReport.id, selectedReport.commentId ? "comment" : "post", "reject")
-                                        setDetailsDialogOpen(false)
-                                    }}
+                                    variant={selectedReport.resolved ? "outline" : "default"}
+                                    onClick={() => handleMarkResolved(selectedReport.id, selectedReport.status === 'PENDING' ? 'RESOLVED' : 'PENDING')}
                                 >
-                                    Reject
+                                    {selectedReport.status === 'PENDING' ? "Mark resolved" : "Mark Unresolved"}
                                 </Button>
-                                <Button
-                                    onClick={() => {
-                                        handleReportAction(selectedReport.id, selectedReport.commentId ? "comment" : "post", "accept")
-                                        setDetailsDialogOpen(false)
-                                    }}
-                                >
-                                    Accept
+                                <Button variant="destructive" onClick={() => handleDeleteReport(selectedReport.id)}>
+                                    Delete Report
+                                </Button>
+                                <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+                                    Close
                                 </Button>
                             </div>
                         )}
-                        <div className="flex gap-2">
-                            <Button variant="destructive" onClick={() => handleDeleteReport(selectedReport.id)}>
-                                Delete Report
-                            </Button>
-                        </div>
-                        <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
-                            Close
-                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

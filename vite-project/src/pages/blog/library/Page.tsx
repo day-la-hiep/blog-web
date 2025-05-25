@@ -1,21 +1,18 @@
 "use client"
 
 import { Label } from "@/components/ui/label"
-
 import * as React from "react"
-import { Link } from "react-router-dom"
-// import { useRouter } from "next/navigation"
-import { Bell, BookOpen, Edit3, LogOut, Menu, MoreHorizontal, Pencil, Search, Trash, User } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { BookOpen, MoreHorizontal, Pencil, Search, Trash, Plus, Loader2 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -27,344 +24,470 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-
-// Mock data
-const savedLists = [
-    {
-        id: "1",
-        title: "Web Development",
-        count: 5,
-        updatedAt: "2023-05-20",
-    },
-    {
-        id: "2",
-        title: "Design Inspiration",
-        count: 3,
-        updatedAt: "2023-05-15",
-    },
-    {
-        id: "3",
-        title: "Must Read",
-        count: 7,
-        updatedAt: "2023-05-18",
-    },
-    {
-        id: "4",
-        title: "AI Research",
-        count: 2,
-        updatedAt: "2023-05-10",
-    },
-    {
-        id: "5",
-        title: "Career Resources",
-        count: 4,
-        updatedAt: "2023-05-12",
-    },
-]
-
-const savedArticles = [
-    {
-        id: "1",
-        title: "Getting Started with Next.js",
-        summary: "Learn the basics of Next.js and how to get started with your first project.",
-        author: "John Doe",
-        authorAvatar: "/placeholder.svg?height=40&width=40",
-        date: "2023-05-15",
-        readTime: "5 min",
-        thumbnail: "/placeholder.svg?height=200&width=400",
-    },
-    {
-        id: "2",
-        title: "Understanding React Hooks",
-        summary: "A deep dive into React Hooks and how they can simplify your code.",
-        author: "Jane Smith",
-        authorAvatar: "/placeholder.svg?height=40&width=40",
-        date: "2023-05-10",
-        readTime: "7 min",
-        thumbnail: "/placeholder.svg?height=200&width=400",
-    },
-    {
-        id: "3",
-        title: "The Future of AI in Web Development",
-        summary: "Exploring how AI is changing the landscape of web development.",
-        author: "Mike Johnson",
-        authorAvatar: "/placeholder.svg?height=40&width=40",
-        date: "2023-05-20",
-        readTime: "10 min",
-        thumbnail: "/placeholder.svg?height=200&width=400",
-    },
-]
+import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
+import { useState } from "react"
+import {
+    createSavedList,
+    deleteSavedList,
+    fetchArticlesInSavedList,
+    getUserSavedLists,
+    removeArticleFromSavedList,
+    renameSavedList,
+} from "@/service/SavedListApi"
 
 export default function LibraryPage() {
-    //   const router = useRouter()
-    const [searchQuery, setSearchQuery] = React.useState("")
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
     const [deleteListDialogOpen, setDeleteListDialogOpen] = React.useState(false)
     const [editListDialogOpen, setEditListDialogOpen] = React.useState(false)
-    const [selectedList, setSelectedList] = React.useState<(typeof savedLists)[0] | null>(null)
+    const [createDialogOpen, setCreateDialogOpen] = useState(false)
+    const [deleteArticleDialogOpen, setDeleteArticleDialogOpen] = useState(false)
+
+    const [loading, setLoading] = useState(false)
+    const [selectedList, setSelectedList] = useState<any>(null)
     const [editedTitle, setEditedTitle] = React.useState("")
-    const [selectedListId, setSelectedListId] = React.useState<string | null>(null)
-    const [createListDialogOpen, setCreateListDialogOpen] = React.useState(false)
-    const [newListTitle, setNewListTitle] = React.useState("")
+    const [lists, setLists] = useState([])
+    const [articles, setArticles] = useState<any[]>([])
+    const [search, setSearch] = useState("")
+    const [newListName, setNewListName] = useState("")
+    const [selectedArticle, setSelectedArticle] = useState<any>(null)
+    const navigate = useNavigate()
 
-    // Filter lists based on search
-    const filteredLists = React.useMemo(() => {
-        if (!searchQuery) return savedLists
-
-        return savedLists.filter((list) => list.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    }, [searchQuery])
-
-    const handleListSelect = (listId: string) => {
-        setSelectedListId(listId)
+    // Fetch lists
+    const fetchLists = async () => {
+        setLoading(true)
+        try {
+            const res = await getUserSavedLists()
+            setLists(res.items || res)
+            // Auto-select first list if available
+            if ((res.items || res).length > 0) {
+                handleSelectList((res.items || res)[0])
+            }
+        } catch {
+            toast.error("Failed to load collections")
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const handleEditList = (list: (typeof savedLists)[0]) => {
+    React.useEffect(() => {
+        fetchLists()
+    }, [])
+
+    // When select list, show articles
+    const handleSelectList = async (list: any) => {
         setSelectedList(list)
-        setEditedTitle(list.title)
+        try {
+            const res = await fetchArticlesInSavedList(list.id)
+            setArticles(res.items || [])
+        } catch (error) {
+            toast.error("Failed to load articles")
+        }
+    }
+
+    // Create new list
+    const handleCreateList = async () => {
+        if (!newListName.trim()) return
+
+        try {
+            await createSavedList(newListName)
+            setNewListName("")
+            setCreateDialogOpen(false)
+            fetchLists()
+            toast.success("Collection created successfully")
+        } catch {
+            toast.error("Failed to create collection")
+        }
+    }
+
+    // Edit list name
+    const handleEditList = (list: any) => {
+        setSelectedList(list)
+        setEditedTitle(list.name)
         setEditListDialogOpen(true)
     }
 
-    const handleDeleteList = (list: (typeof savedLists)[0]) => {
-        setSelectedList(list)
-        setDeleteListDialogOpen(true)
+    const handleSaveEdit = async () => {
+        if (!editedTitle.trim() || !selectedList) return
+
+        try {
+            await renameSavedList(selectedList.id, editedTitle)
+            setEditListDialogOpen(false)
+            fetchLists()
+            toast.success("Collection renamed successfully")
+        } catch {
+            toast.error("Failed to rename collection")
+        }
     }
 
-    const handleSaveEdit = () => {
-        // In a real app, you would make an API call to update the list
-        console.log(`Saving edited list: ${editedTitle}`)
-        setEditListDialogOpen(false)
+    // Delete list
+    const handleDeleteList = (list: any) => {
+            setSelectedList(list)
+            setDeleteListDialogOpen(true)
     }
 
-    const handleDeleteConfirm = () => {
-        // In a real app, you would make an API call to delete the list
-        console.log(`Deleting list ${selectedList?.id}`)
-        setDeleteListDialogOpen(false)
-        setSelectedList(null)
-        setSelectedListId(null)
+    const handleDeleteListConfirm = async () => {
+        if (!selectedList) return
+
+        try {
+            await deleteSavedList(selectedList.id)
+            setDeleteListDialogOpen(false)
+            setSelectedList(null)
+            setArticles([])
+            fetchLists()
+            toast.success("Collection deleted successfully")
+        } catch {
+            toast.error("Failed to delete collection")
+        }
     }
 
-    const handleCreateList = () => {
-        // In a real app, you would make an API call to create the list
-        console.log(`Creating new list: ${newListTitle}`)
-        setCreateListDialogOpen(false)
-        setNewListTitle("")
+    const handleDeleteArticleConfirm = async () => {
+        if (!selectedArticle || !selectedList) return
+
+        try {
+            await removeArticleFromSavedList(selectedList.id, selectedArticle.id)
+            setDeleteArticleDialogOpen(false)
+            handleSelectList(selectedList) // Refresh articles
+            toast.success("Article removed from collection")
+        } catch {
+            toast.error("Failed to remove article")
+        }
     }
 
     const handleArticleClick = (id: string) => {
-        router.push(`/posts/${id}`)
+        navigate(`/posts/${id}`)
     }
 
+    const filteredLists = lists.filter((list: any) => list.name.toLowerCase().includes(search.toLowerCase()))
+
     return (
-        <div className="flex min-h-screen flex-col w-full">
-
-            <main className="flex-1">
-                <div className="container px-4 py-6 sm:px-6">
-                    <div className="mb-6 flex items-center justify-between">
-                        <h1 className="text-3xl font-bold">My Library</h1>
-                        <div className="flex items-center gap-4">
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="search"
-                                    placeholder="Search collections..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-8 sm:max-w-md"
-                                />
-                            </div>
-                            <Button onClick={() => setCreateListDialogOpen(true)}>
-                                <BookOpen className="mr-2 h-4 w-4" />
-                                Create Collection
-                            </Button>
+        <div className="min-h-screen bg-background">
+            <div className="container mx-auto px-4 py-8 max-w-7xl">
+                {/* Header */}
+                <div className="mb-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h1 className="text-4xl font-bold tracking-tight">My Collections</h1>
+                            <p className="text-muted-foreground mt-2">Organize and manage your saved articles</p>
                         </div>
-                    </div>
-
-
-                    <div className="grid gap-6 sm:grid-cols-12">
-                        <div className="sm:col-span-4">
-                            <div className="space-y-4">
-                                <h2 className="text-xl font-semibold">Collections</h2>
-                                <div className="space-y-2">
-                                    {filteredLists.map((list) => (
-                                        <Card
-                                            key={list.id}
-                                            className={`cursor-pointer transition-all hover:border-primary/50 ${selectedListId === list.id ? "border-primary" : ""
-                                                }`}
-                                            onClick={() => handleListSelect(list.id)}
-                                        >
-                                            <CardHeader className="p-4">
-                                                <div className="flex items-center justify-between">
-                                                    <CardTitle className="text-base">{list.title}</CardTitle>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleEditList(list)
-                                                                }}
-                                                            >
-                                                                <Pencil className="mr-2 h-4 w-4" />
-                                                                <span>Edit Title</span>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                className="text-destructive focus:text-destructive"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleDeleteList(list)
-                                                                }}
-                                                            >
-                                                                <Trash className="mr-2 h-4 w-4" />
-                                                                <span>Delete Collection</span>
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent className="p-4 pt-0">
-                                                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                                    <span>
-                                                        {list.count} article{list.count !== 1 && "s"}
-                                                    </span>
-                                                    <span>Updated {list.updatedAt}</span>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="sm:col-span-8">
-                            {selectedListId ? (
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h2 className="text-xl font-semibold">{savedLists.find((l) => l.id === selectedListId)?.title}</h2>
-                                        <span className="text-sm text-muted-foreground">
-                                            {savedArticles.length} article{savedArticles.length !== 1 && "s"}
-                                        </span>
-                                    </div>
-                                    <div className="grid gap-6 sm:grid-cols-2">
-                                        {savedArticles.map((article) => (
-                                            <Card
-                                                key={article.id}
-                                                className="cursor-pointer overflow-hidden transition-all hover:shadow-md"
-                                                onClick={() => handleArticleClick(article.id)}
-                                            >
-                                                <div className="aspect-video w-full overflow-hidden">
-                                                    <img
-                                                        src={article.thumbnail || "/placeholder.svg"}
-                                                        alt={article.title}
-                                                        className="h-full w-full object-cover"
-                                                    />
-                                                </div>
-                                                <CardHeader className="p-4">
-                                                    <CardTitle className="line-clamp-2 text-lg">{article.title}</CardTitle>
-                                                    <CardDescription className="line-clamp-2">{article.summary}</CardDescription>
-                                                </CardHeader>
-                                                <CardFooter className="flex items-center gap-3 p-4 pt-0">
-                                                    <Avatar className="h-6 w-6">
-                                                        <AvatarImage src={article.authorAvatar || "/placeholder.svg"} alt={article.author} />
-                                                        <AvatarFallback>{article.author[0]}</AvatarFallback>
-                                                    </Avatar>
-                                                    <span className="text-sm font-medium">{article.author}</span>
-                                                    <span className="text-sm text-muted-foreground">{article.date}</span>
-                                                </CardFooter>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                                    <BookOpen className="mb-4 h-12 w-12 text-muted-foreground" />
-                                    <h3 className="mb-2 text-xl font-semibold">No Collection Selected</h3>
-                                    <p className="mb-6 text-muted-foreground">
-                                        Select a collection from the sidebar to view saved articles
-                                    </p>
-                                    <Button variant="outline" onClick={() => setCreateListDialogOpen(true)}>
-                                        Create New Collection
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
+                        <Button onClick={() => setCreateDialogOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Collection
+                        </Button>
                     </div>
                 </div>
-            </main>
 
-            {/* Edit List Dialog */}
-            <Dialog open={editListDialogOpen} onOpenChange={setEditListDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Collection</DialogTitle>
-                        <DialogDescription>Change the title of your collection.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="title">Title</Label>
-                            <Input id="title" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} />
-                        </div>
+                <div className="grid lg:grid-cols-[350px_1fr] gap-8">
+                    {/* Collections Sidebar */}
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <BookOpen className="h-5 w-5" />
+                                    Collections
+                                    <Badge variant="secondary" className="ml-auto">
+                                        {lists.length}
+                                    </Badge>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {/* Search */}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Search collections..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                </div>
+
+                                {/* Collections List */}
+                                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                                    {loading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                        </div>
+                                    ) : filteredLists.length === 0 ? (
+                                        <div className="text-center py-8 text-muted-foreground">
+                                            {search ? "No collections found" : "No collections yet"}
+                                        </div>
+                                    ) : (
+                                        filteredLists.map((list: any) => (
+                                            <Card
+                                                key={list.id}
+                                                className={`cursor-pointer transition-all duration-200 hover:bg-accent p-0 ${selectedList?.id === list.id ? "border-primary bg-accent" : "hover:border-border"
+                                                    }`}
+                                                onClick={() => handleSelectList(list)}
+                                            >
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h3 className="font-medium text-sm truncate">{list.name}</h3>
+                                                            <p className="text-xs text-muted-foreground mt-1">{list.articleCount || 0} articles</p>
+                                                        </div>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 opacity-100 group-hover:opacity-100 transition-opacity"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <MoreHorizontal className="h-4 w-4 " color="black" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        setTimeout(() => {
+                                                                            e.stopPropagation()
+                                                                            handleEditList(list)
+                                                                        }, 0)
+                                                                    }}
+                                                                >
+                                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                                    Rename
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive"
+                                                                    onClick={(e) => {
+                                                                        setTimeout(() => {
+                                                                            e.stopPropagation()
+                                                                            handleDeleteList(list)
+                                                                        }, 0)
+
+                                                                    }}
+                                                                >
+                                                                    <Trash className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditListDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSaveEdit}>Save changes</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
-            {/* Delete List Dialog */}
-            <Dialog open={deleteListDialogOpen} onOpenChange={setDeleteListDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Confirm Deletion</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete the collection "{selectedList?.title}"? This action cannot be undone.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteListDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button variant="destructive" onClick={handleDeleteConfirm}>
-                            Delete
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    {/* Articles Section */}
+                    <div className="space-y-6">
+                        {selectedList ? (
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <CardTitle className="text-xl">{selectedList.name}</CardTitle>
+                                            <CardDescription className="mt-1">
+                                                {articles.length} {articles.length === 1 ? "article" : "articles"} saved
+                                            </CardDescription>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    {articles.length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                            <h3 className="text-lg font-medium mb-2">No articles yet</h3>
+                                            <p className="text-muted-foreground">Start saving articles to this collection</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                                            {articles.map((article) => (
+                                                <Card
+                                                    key={article.id}
+                                                    className="group cursor-pointer overflow-hidden transition-all duration-200 hover:shadow-md"
+                                                    onClick={() => handleArticleClick(article.id)}
+                                                >
+                                                    <div className="aspect-video w-full overflow-hidden bg-muted">
+                                                        <img
+                                                            src={article.thumbnailUrl || "/placeholder.svg?height=200&width=300"}
+                                                            alt={article.title}
+                                                            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                        />
+                                                    </div>
+                                                    <CardContent className="p-4">
+                                                        <h3 className="font-semibold line-clamp-2 text-sm mb-2 group-hover:text-primary transition-colors">
+                                                            {article.title}
+                                                        </h3>
+                                                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{article.summary}</p>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <Avatar className="h-6 w-6">
+                                                                    <AvatarImage
+                                                                        src={
+                                                                            article.avatarUrl || article.authorAvatar || "/placeholder.svg?height=24&width=24"
+                                                                        }
+                                                                        alt={article.author}
+                                                                    />
+                                                                    <AvatarFallback className="text-xs">
+                                                                        {article.author?.[0]?.toUpperCase()}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <span className="text-xs font-medium">{article.author}</span>
+                                                            </div>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <MoreHorizontal className="h-3 w-3" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem
+                                                                        className="text-destructive focus:text-destructive"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            setTimeout(() => {
+                                                                                setSelectedArticle(article)
+                                                                                setDeleteArticleDialogOpen(true)
+                                                                            }, 0)
 
-            {/* Create List Dialog */}
-            <Dialog open={createListDialogOpen} onOpenChange={setCreateListDialogOpen}>
-                <DialogContent>
+                                                                        }}
+                                                                    >
+                                                                        <Trash className="mr-2 h-4 w-4" />
+                                                                        Remove
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card>
+                                <CardContent className="flex flex-col items-center justify-center py-16">
+                                    <BookOpen className="h-16 w-16 text-muted-foreground mb-4" />
+                                    <h3 className="text-xl font-medium mb-2">Select a Collection</h3>
+                                    <p className="text-muted-foreground text-center max-w-md">
+                                        Choose a collection from the sidebar to view your saved articles
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Create Collection Dialog */}
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Create New Collection</DialogTitle>
                         <DialogDescription>Create a new collection to organize your saved articles.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="new-title">Title</Label>
+                            <Label htmlFor="new-title">Collection Name</Label>
                             <Input
                                 id="new-title"
-                                value={newListTitle}
-                                onChange={(e) => setNewListTitle(e.target.value)}
-                                placeholder="E.g., Web Development Resources"
+                                value={newListName}
+                                onChange={(e) => setNewListName(e.target.value)}
+                                placeholder="e.g., Web Development Resources"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        handleCreateList()
+                                    }
+                                }}
                             />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateListDialogOpen(false)}>
+                        <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleCreateList}>Create</Button>
+                        <Button onClick={handleCreateList} disabled={!newListName.trim()}>
+                            Create Collection
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
+            {/* Edit Collection Dialog */}
+            <Dialog open={editListDialogOpen} onOpenChange={setEditListDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Rename Collection</DialogTitle>
+                        <DialogDescription>Change the name of your collection.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-title">Collection Name</Label>
+                            <Input
+                                id="edit-title"
+                                value={editedTitle}
+                                onChange={(e) => setEditedTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        handleSaveEdit()
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditListDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveEdit} disabled={!editedTitle.trim()}>
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-        </div>
+            {/* Delete Collection Dialog */}
+            <Dialog open={deleteListDialogOpen} onOpenChange={setDeleteListDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete Collection</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete "{selectedList?.name}"? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteListDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleDeleteListConfirm}>
+                            Delete Collection
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Article Dialog */}
+            <Dialog open={deleteArticleDialogOpen} onOpenChange={setDeleteArticleDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Remove Article</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to remove "{selectedArticle?.title}" from this collection?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteArticleDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleDeleteArticleConfirm}>
+                            Remove Article
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     )
 }

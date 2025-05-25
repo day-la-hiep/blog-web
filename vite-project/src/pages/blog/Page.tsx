@@ -16,7 +16,9 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { createPost } from "@/service/PostApi"
-import { SquarePen } from "lucide-react"
+import { ContactRound, SquarePen } from "lucide-react"
+import { fetchDetailUser } from "@/service/UserApi"
+import SignupDialog from "./signupDialog"
 const NameSchema = z.object({
     name: z.string().min(1, "Name is required"),
 })
@@ -24,13 +26,11 @@ const Page = () => {
     const [isNewPostDialogOpen, setIsNewPostDialogOpen] = useState(false)
     const auth = useAuth()
     const navigate = useNavigate()
-    useEffect(() => {
-        const action = async () => {
-            await auth.verifyToken()
-            // setIsAuthenticating(false)
-        }
-        action()
-    }, [auth.token])
+    const [avatarUrl, setAvatarUrl] = useState<string>("")
+
+    if (auth.isLoading) {
+        return <div>loading</div>
+    }
     const handleLogout = () => {
         auth.logout()
     }
@@ -54,11 +54,16 @@ const Page = () => {
         navigate(`/edit-posts/${res.id}`)
         setIsNewPostDialogOpen(false)
     }
+
+
+
     return (
-        <div  className="flex flex-col w-full min-h-screen">
+        <div className="flex flex-col w-full min-h-screen">
             <div className="container mx-auto flex  justify-between p-2 sticky top-0 z-10 bg-white">
-                <Label className="text-3xl">
-                    <Link to="/">Large</Link>
+                <Label className="text-2xl font-bold">
+                    <Link to="/" >
+                        Large
+                    </Link>
                 </Label>
                 <div className="flex gap-2">
                     <Input placeholder="search"></Input>
@@ -91,11 +96,8 @@ const Page = () => {
                                 </Dialog>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger className="Button">
-                                        <Button size="icon" className="rounded-full">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                                                <AvatarFallback>U</AvatarFallback>
-                                            </Avatar>
+                                        <Button variant={"outline"} size="icon" className="rounded-full">
+                                            <ContactRound />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
@@ -108,10 +110,14 @@ const Page = () => {
                                         <Link to="/my-posts">
                                             <DropdownMenuItem>My post</DropdownMenuItem>
                                         </Link>
+                                        {
+                                            auth.userInfo.role === 'ROLE_ADMIN' ? <>
+                                                <Link to={"/admin"}>
+                                                    <DropdownMenuItem >Management</DropdownMenuItem>
+                                                </Link>
+                                            </> : <></>
+                                        }
                                         <DropdownMenuSeparator />
-                                        <Link to="/admin/dashboard">
-                                            <DropdownMenuItem>Dashboard</DropdownMenuItem>
-                                        </Link>
                                         <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
 
                                     </DropdownMenuContent>
@@ -120,9 +126,7 @@ const Page = () => {
                             <>
                                 <LoginDialog />
 
-                                <Button>
-                                    Signup
-                                </Button>
+                                <SignupDialog />
                             </>
                     }
 
@@ -136,9 +140,9 @@ const Page = () => {
                 <div className="container flex flex-col items-center justify-between gap-4 px-4 text-center md:flex-row md:text-left">
                     <div className="flex items-center gap-2">
                         <div className="h-6 w-6 rounded-full bg-primary" />
-                        <span className="text-lg font-bold">BlogApp</span>
+                        <span className="text-lg font-bold">Large</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">© 2023 BlogApp. All rights reserved.</p>
+                    <p className="text-sm text-muted-foreground">© 2025 Large. All rights reserved.</p>
                     <div className="flex gap-4">
                         <Link to="#" className="text-sm text-muted-foreground hover:underline">
                             Terms
