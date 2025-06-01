@@ -42,13 +42,13 @@ const currentUser = {
 }
 
 export default function ReportsPage() {
-    const [isLoading, setIsLoading] = React.useState(true)
+    // const [isLoading, setIsLoading] = React.useState(true)
     const navigate = useNavigate()
     const [activeTab, setActiveTab] = React.useState("post")
 
     // State for post reports
     const [reportStatus, setReportStatus] = React.useState("all")
-    const [postSearchQuery, setPostSearchQuery] = React.useState("")
+    const [search, setSearch] = React.useState("")
 
     // Dialog state
     const [detailsDialogOpen, setDetailsDialogOpen] = React.useState(false)
@@ -60,8 +60,8 @@ export default function ReportsPage() {
     const [isAddingNote, setIsAddingNote] = React.useState(false)
 
     // Pagination state
-    const [startDate, setStartDate] = React.useState(new Date())
-    const [endDate, setEndDate] = React.useState(new Date())
+    const [startDate, setStartDate] = React.useState()
+    const [endDate, setEndDate] = React.useState()
     const [currentPage, setCurrentPage] = React.useState(0)
     const [pageLimit, setPagelimit] = React.useState(10)
     const totalItems = React.useRef(0)
@@ -86,11 +86,15 @@ export default function ReportsPage() {
     // Filter post reports
     const [reports, setReports] = React.useState<any[]>([])
     React.useEffect(() => {
+        const controller = new AbortController();
+        const signal = controller.signal;
         udpateReports()
-    }, [currentPage, pageLimit, activeTab, startDate, endDate, reportStatus])
+        return () => {
+            controller.abort(); // Clean up the effect by aborting the fetch request
+        }
+    }, [currentPage, pageLimit, activeTab, startDate, endDate, reportStatus, search])
     const udpateReports = async () => {
         try {
-            setIsLoading(true)
             const response = await fetchReports({
                 page: currentPage,
                 limit: pageLimit,
@@ -99,6 +103,7 @@ export default function ReportsPage() {
                 status: reportStatus === "all" ? undefined : reportStatus,
                 startDate: startDate ? startDate.toISOString().replace(/Z$/, '') : undefined,
                 endDate: endDate ? endDate.toISOString().replace(/Z$/, '') : undefined,
+                search: search.trim(),
             })
             setReports(response.items || [])
             setCurrentPage(response.page)
@@ -110,7 +115,6 @@ export default function ReportsPage() {
             console.error("Failed to fetch reports:", error)
             toast.error("Failed to fetch reports")
         } finally {
-            setIsLoading(false)
         }
     }
 
@@ -234,8 +238,8 @@ export default function ReportsPage() {
                                 <Search className="h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search reports..."
-                                    value={postSearchQuery}
-                                    onChange={(e) => setPostSearchQuery(e.target.value)}
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
                                     className="flex-1"
                                 />
                             </div>
@@ -276,14 +280,14 @@ export default function ReportsPage() {
                                 <TableRow>
                                     <TableHead>ID</TableHead>
                                     <TableHead>Reason</TableHead>
-                                    <TableHead className="hidden md:table-cell">Details</TableHead>
+                                    <TableHead className="hidden md:table-cell">Created by</TableHead>
                                     <TableHead>Reported By</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {isLoading ? (
+                                {false ? (
                                     <>
                                         <TableRow>
                                             <TableCell colSpan={7} className="text-center py-4">
@@ -343,10 +347,6 @@ export default function ReportsPage() {
                                                                         <span>Mark Resolved</span>
                                                                     </>
                                                                 )}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleDeleteContent(report)} className="text-red-600">
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                <span>Delete content</span>
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleDeleteReport(report.id)} className="text-red-600">
                                                                 <Trash className="mr-2 h-4 w-4" />

@@ -104,7 +104,12 @@ export default function UsersPage() {
     username: string
   }[]>([])
   useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
     updateUser()
+    return () => {
+      controller.abort(); // Clean up the effect by aborting the fetch request
+    }
   }, [currentPage, pageLimit, searchQuery, selectedRole, sortBy])
 
   const updateUser = async () => {

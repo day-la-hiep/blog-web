@@ -52,10 +52,10 @@ const SignupDialog = () => {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Login</DialogTitle>
+                    <DialogTitle>Sign up</DialogTitle>
                 </DialogHeader>
                 <DialogDescription>
-                    Please enter your username and password
+                    Please enter your account information to sign up.
                 </DialogDescription>
                 <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
                     <Label>Username</Label>
@@ -69,7 +69,7 @@ const SignupDialog = () => {
                     {errors.password && (
                         <p className="text-red-500 text-sm">{errors.password.message}</p>
                     )}
-                    <div>
+                    <div className="space-y-2">
                         <Label>First name</Label>
                         <Input type="text" {...register("firstName")} />
                         <Label>Last name</Label>
@@ -83,7 +83,7 @@ const SignupDialog = () => {
                     {errors.email && (
                         <p className="text-red-500 text-sm">{errors.email.message}</p>
                     )}
-                    <Button type="submit">Login</Button>
+                    <Button type="submit">Sign up</Button>
 
 
                 </form>

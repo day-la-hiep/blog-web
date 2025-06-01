@@ -5,8 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchCategories, fetchPublicCategories } from "@/service/CategoryApi";
 import { fetchPostsByUsername, fetchPublicPosts, fetchPublicPostsByCategories } from "@/service/PostApi";
 import React, { useEffect, useState } from "react";
-import { useActionData, useNavigate } from "react-router-dom";
+import { useActionData, useNavigate, useSearchParams } from "react-router-dom";
 import FilterBar from "./component/filter-bar";
+import { Input } from "@/components/ui/input";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Mock data
 // const categories = [
 //   { id: "1", name: "All", slug: "all" },
@@ -86,15 +89,50 @@ const posts = [
   },
 ]
 export default function MainContent() {
+  const [searchParams] = useSearchParams()
   const [activeCategory, setActiveCategory] = React.useState("all")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+
   const navigate = useNavigate()
   // Filter articles based on active category
+  const [currentPage, setCurrentPage] = React.useState(0)
+  const totalItems = React.useRef(0)
+  const totalPages = React.useRef(0)
+  const currentPageInputRef = React.useRef<HTMLInputElement>(null)
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const value = parseInt(currentPageInputRef.current?.value || '1', 10)
+      if (!isNaN(value) && value > 0 && value <= totalPages.current) {
+        setCurrentPage(value - 1)
+      }
+    }
+  }
+  const handleInputBLur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10)
+    if (isNaN(value) || value < 1 || value > totalPages.current) {
+      e.target.value = (currentPage + 1).toString()
+    }
+  }
 
-  const [filteredArticles, setFilteredArticles] = React.useState<any[]>([])
+
+  const [filteredPosts, setFilteredArticles] = React.useState<any[]>([])
   useEffect(() => {
     const fetchData = async () => {
-      const data = activeCategory == 'all' ? await fetchPublicPosts() : await fetchPublicPostsByCategories(activeCategory)
+      let data
+      if (activeCategory == 'all') {
+        data = await fetchPublicPosts({
+          page: currentPage,
+          limit: 8,
+          search: searchParams.get('search') || ''
+        })
+      } else {
+        data = await fetchPublicPostsByCategories({
+          categorySlug: activeCategory,
+          page: currentPage,
+          limit: 8,
+          search: searchParams.get('search') || ''
+        })
+      }
       // Map lại để đảm bảo các trường author, authorAvatar, avatarUrl, date luôn tồn tại
       const mapped = (data.items || []).map((article: any) => ({
         ...article,
@@ -102,10 +140,20 @@ export default function MainContent() {
         avatarUrl: article.avatarUrl || "",
         date: article.date || article.publishedDate || ""
       }))
+      totalItems.current = data.totalItems || 0
+      totalPages.current = data.totalPages
+      if (currentPage >= totalPages.current) {
+        setCurrentPage(Math.max(0, totalPages.current - 1))
+        currentPageInputRef.current.value =Math.max(0, totalPages.current - 1)
+      } else {
+        currentPageInputRef.current.value = (currentPage + 1).toString()
+
+      }
+
       setFilteredArticles(mapped)
     }
     fetchData()
-  }, [activeCategory])
+  }, [activeCategory, searchParams, currentPage])
 
   const [categories, setCategories] = useState<{
     id: string,
@@ -147,8 +195,8 @@ export default function MainContent() {
 
       <main className="flex-1 flex flex-col items-center">
 
-        <div className="container w-3/4 px-4 py-6 sm:px-6">
-          <div className="mb-6 overflow-x-auto">
+        <div className="container w-3/4 px-4 py-6 sm:px-6 flex flex-col flex-1">
+          <div className="mb-6 overflow-x-auto flex-1 flex flex-col gap-4">
             <FilterBar
               allowMultiple={false}
               options={categories.map((item) => ({
@@ -157,37 +205,87 @@ export default function MainContent() {
                 value: item.slug,
               }))}
               selectedValues={[activeCategory]}
-              onSelectionChange={(selectedValues) =>  setActiveCategory(selectedValues[0])}
+              onSelectionChange={(selectedValues) => setActiveCategory(selectedValues[0])}
             />
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 ">
-                {filteredArticles && filteredArticles.map((article) => (
-                  <Card
-                    key={article.id}
-                    className="cursor-pointer overflow-hidden transition-all hover:shadow-md p-0 gap-5"
-                    onClick={() => handleArticleClick(article.id)}
-                  >
-                    <div className="aspect-16/9 w-full overflow-hidden">
-                      <img
-                        src={article.thumbnailUrl || "/placeholder.svg"}
-                        alt={article.title}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <CardHeader className="px-4 flex-1">
-                      <CardTitle className="line-clamp-3">{article.title}</CardTitle>
-                      <CardDescription className="line-clamp-3 text-xs">{article.summary}</CardDescription>
-                    </CardHeader>
-                    <CardFooter className="flex items-center gap-3 p-4 pt-0">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={article.avatarUrl || article.authorAvatar || "/placeholder.svg"} alt={article.author} />
-                        <AvatarFallback>{article.author[0]}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium">{article.author}</span>
-                      <span className="text-sm text-muted-foreground">{article.date}</span>
-                    </CardFooter>
-                  </Card>
-                ))}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 ">
+              {filteredPosts && filteredPosts.map((article) => (
+                <Card
+                  key={article.id}
+                  className="cursor-pointer overflow-hidden transition-all hover:shadow-md p-0 gap-5"
+                  onClick={() => handleArticleClick(article.id)}
+                >
+                  <div className="aspect-16/9 w-full overflow-hidden">
+                    <img
+                      src={article.thumbnailUrl || "/placeholder.svg"}
+                      alt={article.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <CardHeader className="px-4 flex-1">
+                    <CardTitle className="line-clamp-3">{article.title}</CardTitle>
+                    <CardDescription className="line-clamp-3 text-xs">{article.summary}</CardDescription>
+                  </CardHeader>
+                  <CardFooter className="flex items-center gap-3 p-4 pt-0">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={article.avatarUrl || article.authorAvatar || "/placeholder.svg"} alt={article.author} />
+                      <AvatarFallback>{article.author[0]}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{article.author}</span>
+                    <span className="text-sm text-muted-foreground">{article.date}</span>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex-1 w-full flex items-center justify-center">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(0)}
+                disabled={currentPage === 0}
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(Math.min(currentPage - 1, totalPages.current - 1))}
+                disabled={currentPage === 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex flex-col">
+                <div className="flex items-center">
+                  <Input
+
+                    ref={currentPageInputRef}
+                    className="w-16 h-9 text-center"
+                    onKeyDown={handleInputKeyDown}
+                    onBlur={handleInputBLur}
+                  />
+                  <span className="text-sm mx-2">/ {totalPages.current}</span>
+                </div>
               </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages.current - 1))}
+                disabled={currentPage === totalPages.current - 1}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(totalPages.current - 1)}
+                disabled={currentPage === totalPages.current - 1}
+                aria-label="Trang cuối cùng"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+
+            </div>
           </div>
         </div>
       </main>

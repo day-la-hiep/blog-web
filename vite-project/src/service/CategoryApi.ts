@@ -101,7 +101,9 @@ export async function createCategory({
         const res = await axios.post(`${baseUrl}/categories`, {
             name: name,
             slug: slug,
-            description: description
+            description: description,
+            active: active,
+            parentId: parentId
         }, {
             headers: {
                 Authorization: `Bearer ${token}`

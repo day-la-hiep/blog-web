@@ -93,7 +93,12 @@ export default function CommentsPage() {
     const [filteredComments, setFilteredComments] = React.useState<any[]>(comments)
     // Filter comments based on filters
     useEffect(() => {
+        const controller = new AbortController();
+        const signal = controller.signal;
         updateComments()
+        return () => {
+            controller.abort(); // Cleanup the fetch request on component unmount
+        }
     }, [searchQuery, startDate, endDate, pageLimit, currentPage, sortBy])
     const updateComments = async () => {
         try {

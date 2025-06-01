@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { ArrowLeftFromLine, BookOpen, BookUp, Edit3, ImageIcon, Loader2, LogOut, Menu, Save, Send, User, X } from "lucide-react"
+import { ArrowLeftFromLine, BookOpen, BookUp, Edit3, Eye, ImageIcon, Loader2, LogOut, Menu, Save, Send, User, X } from "lucide-react"
 import Editor, { Plugins } from 'react-markdown-editor-lite';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -294,7 +294,10 @@ export default function EditPost() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold">Edit Post</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-3xl font-bold">Edit Post</h1>
+                  <Button className="p-2" variant={"ghost"} onClick={() => navigate(`/preview-post/${postId}`)}> <Eye /></Button>
+                </div>
                 <p className="text-muted-foreground">Edit and publish your next article</p>
               </div>
               <div className="flex items-center gap-2">
@@ -368,27 +371,27 @@ export default function EditPost() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">
-                        <Command>
+                      <Command>
                         <CommandInput placeholder="Search categories..." />
                         <CommandList>
                           <CommandEmpty>No categories found.</CommandEmpty>
                           <CommandGroup>
-                          {categories.map((category) => {
-                            const isSelected = selectedCategories.some((item) => item.id === category.id)
-                            return (
-                            <CommandItem
-                              key={category.id}
-                              value={category.id}
-                              onSelect={() => handleSelectCategories(category)}
-                            >
-                              <span>{category.name}</span>
-                              {isSelected && <span className="ml-auto text-primary">✓</span>}
-                            </CommandItem>
-                            )
-                          })}
+                            {categories.map((category) => {
+                              const isSelected = selectedCategories.some((item) => item.id === category.id)
+                              return (
+                                <CommandItem
+                                  key={category.id}
+                                  value={category.id}
+                                  onSelect={() => handleSelectCategories(category)}
+                                >
+                                  <span>{category.name}</span>
+                                  {isSelected && <span className="ml-auto text-primary">✓</span>}
+                                </CommandItem>
+                              )
+                            })}
                           </CommandGroup>
                         </CommandList>
-                        </Command>
+                      </Command>
                     </PopoverContent>
                   </Popover>
 

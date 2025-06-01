@@ -61,6 +61,8 @@ function App() {
               <Route path='/library' element={<LibaryPage />} />
               <Route path='/my-posts' element={<MyPostsPage />} />
               <Route path='/users/:username' element={<UserProfilePage />} />
+              <Route path='/preview-post/:postId' element={<PostPreview />} />
+
             </Route>
             <Route path='/test' element={<TestScreen />}></Route>
 

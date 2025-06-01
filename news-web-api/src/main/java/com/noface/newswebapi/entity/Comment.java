@@ -49,7 +49,5 @@ public class Comment {
     @NotNull
     User author;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    Set<Report> reports = new HashSet<>();
 
 }

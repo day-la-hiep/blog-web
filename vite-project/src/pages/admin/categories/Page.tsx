@@ -305,7 +305,7 @@ export default function CategoriesPage() {
                 name: categoryForm.name,
                 slug: categoryForm.slug,
                 description: categoryForm.description,
-                parentId: categoryForm.parentId,
+                parentId: categoryForm.parentId || undefined,
                 active: categoryForm.active,
             })
             toast.success("Tạo danh mục thành công")

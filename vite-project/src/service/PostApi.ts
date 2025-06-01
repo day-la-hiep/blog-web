@@ -49,12 +49,17 @@ export type SortParam = {
 
 
 
-export async function fetchPublicPosts(
-    page: number = 0,
-    limit: number = 10,
+export async function fetchPublicPosts({
+    page = 0,
+    limit = 10,
+    search = '',
+    sortBy = 'title',
+}: {
+    page?: number,
+    limit?: number,
     search?: string,
-    sortBy: string = 'title'
-) {
+    sortBy?: string
+}) {
     try {
         const res = await axios.get(`${baseUrl}/public/articles`, {
             params: {
@@ -117,12 +122,20 @@ export async function fetchPostsByCategory(categoryId: string, {
         console.log("Error fetch posts by categories")
     }
 }
-export async function fetchPublicPostsByCategories(
+export async function fetchPublicPostsByCategories({
+    categorySlug,
+    page = 0,
+    limit = 10,
+    search = '',
+    sortBy = 'id',
+}: {
     categorySlug: string,
-    page: number = 0,
-    limit: number = 10,
+    page?: number,
+    limit?: number,
     search?: string,
-    sortBy: string = "title"
+    sortBy?: string
+}
+
 
 ) {
     try {

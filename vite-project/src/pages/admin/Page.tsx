@@ -82,18 +82,6 @@ export default function Page() {
                 <span className="text-xs text-muted-foreground">Content Management</span>
               </div>
             </div>
-            <div className="px-2 py-2 flex items-center gap-2">
-
-              <form>
-                <div className="relative">
-                  <Input type="search" placeholder="Search..." className="h-9 md:w-[100px] lg:w-full" />
-                </div>
-              </form>
-              <Button>
-                <Search/>
-              </Button>
-
-            </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>

@@ -47,6 +47,9 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import FilterBar from "../component/filter-bar"
+import "react-markdown-editor-lite/lib/index.css";
+
+
 
 const md = new MarkdownIt({
   highlight: (str, lang) => {
