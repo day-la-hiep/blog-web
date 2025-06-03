@@ -1,73 +1,30 @@
 server:
-  port: 8081
-spring:
+  port: ${SERVER_PORT:8080}
 
+spring:
   application:
     name: news-web-api
+
   datasource:
-    url: jdbc:mysql://localhost:3306/blogdatabase
-    username: root
-    password: 123456
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:blogdatabase}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+    properties:
+      dialect: org.hibernate.dialect.MySQL8Dialect
+
   security:
     user:
       name: hiep
       password: hiep
 
-
 cloudinary:
-  CLOUDINARY_URL: cloudinary://355355849832922:Uu5v6iKd52FN7v9SZqp3IuXWyH8@dtshwjjbc
-
-#springdoc:
-#  swagger-ui:
-#    path: /swagger-ui.html
-#    tags-sorter: alpha
-#    operations-sorter: alpha
-#  api-docs:
-#    path: /v3/api-docs
-#  info:
-#    title: Spring Boot Swagger Example
-#    version: 1.0.0
-#    description: API Documentation for Spring Boot Project
+  CLOUDINARY_URL: ${CLOUDINARY_URL:cloudinary://355355849832922:Uu5v6iKd52FN7v9SZqp3IuXWyH8@dtshwjjbc}
 
 jwt:
   signerKey: "xf9P4PE8zjEXX+Z1eApvW3RAjfyuCNfoHCVpcDJitR2Di2tSwoDwpLZcaCNJ/OA1"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
