@@ -8,12 +8,15 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.spec.SecretKeySpec;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
@@ -30,13 +33,12 @@ public class SecurityConfig {
             HttpSecurity httpSecurity) throws Exception {
         httpSecurity
 
-                .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable())
+                .cors(  withDefaults()) // Bắt buộc phải có dòng này!
+
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                         .requestMatchers(HttpMethod.POST, postPermittedRequest).permitAll()
-//                        .requestMatchers(HttpMethod.GET, getPermittedRequest).permitAll()
-
                         .anyRequest().authenticated()
                 )
 
@@ -44,7 +46,10 @@ public class SecurityConfig {
                         oauth2.jwt(jwt -> {
                             jwt.decoder(getJwtDecoder())
                             ;
-                        }))
+                        })
+                )
+
+
         ;
 
 
